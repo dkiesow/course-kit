@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marp Presentation Editor</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .app { display: flex; height: 100vh; }
+        
+        .sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .sidebar-header h1 { font-size: 18px; margin-bottom: 15px; }
+        
+        .presentation-selector {
+            margin-bottom: 15px;
+        }
+        
+        .presentation-selector select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .file-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .file-controls button {
+            flex: 1;
+            padding: 8px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .decks-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .deck {
+            margin-bottom: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .deck-header {
+            padding: 12px;
+            background: #f8f9fa;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        
+        .deck-header:hover { background: #e9ecef; }
+        
+        .deck-title {
+            font-weight: 500;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .deck-toggle {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .deck-slides {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .deck.expanded .deck-slides {
+            max-height: none;
+        }
+        
+        .deck.expanded .deck-toggle::before { content: '▼ '; }
+        .deck:not(.expanded) .deck-toggle::before { content: '▶ '; }
+        
+        .slide-item {
+            padding: 10px 12px;
+            border-top: 1px solid #e9ecef;
+            cursor: move;
+            transition: all 0.2s;
+        }
+        
+        .slide-item:hover { background: #f8f9fa; }
+        .slide-item.active { background: #e7f3ff; border-left: 3px solid #007bff; }
+        .slide-item.dragging { opacity: 0.5; }
+        .slide-item.drag-over { background: #d1e7ff; border-top: 2px solid #007bff; }
+        
+        .slide-item-title {
+            font-size: 13px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .slide-item-class {
+            font-size: 11px;
+            color: #666;
+            font-family: monospace;
+        }
+        
+        .add-buttons {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .add-buttons button {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .btn-new-deck {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .btn-new-slide {
+            background: #28a745;
+            color: white;
+        }
+        
+        .main-editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+        
+        .editor-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .editor-header h2 { font-size: 20px; color: #333; }
+        
+        .save-status {
+            font-size: 13px;
+            color: #666;
+            margin-left: 15px;
+        }
+        
+        .save-status.saving { color: #ffc107; }
+        .save-status.saved { color: #28a745; }
+        
+        .editor-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .editor-actions button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .editor-actions button.delete { background: #dc3545; }
+        
+        .editor-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+        }
+        
+        .empty-state-icon { font-size: 48px; margin-bottom: 20px; }
+        
+        .form-group { margin-bottom: 20px; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        input[type="date"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .bullet-list {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background: #fafafa;
+        }
+        
+        .bullet-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .bullet-item input { flex: 1; }
+        
+        .bullet-item button {
+            padding: 8px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .add-bullet-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .info-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>📊 Presentation Editor</h1>
+                <div class="presentation-selector">
+                    <select id="presentation-select" onchange="loadPresentation()">
+                        <option value="">Select presentation...</option>
+                    </select>
+                </div>
+                <div class="file-controls">
+                    <button onclick="newPresentation()">New</button>
+                    <button onclick="document.getElementById('import-file').click()">Import</button>
+                    <button onclick="exportPresentation()">Export</button>
+                    <button onclick="previewPresentation()" style="background: #28a745;">Preview</button>
+                    <button onclick="deletePresentation()" style="background: #dc3545;">Delete</button>
+                </div>
+                <input type="file" id="import-file" accept=".md" style="display: none;" onchange="importPresentation(event)">
+            </div>
+            <div class="decks-list" id="decks-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📄</div>
+                    <p>Create or select a presentation</p>
+                </div>
+            </div>
+            <div class="add-buttons">
+                <button class="btn-new-deck" onclick="addNewDeck()">+ New Deck (Title Slide)</button>
+                <button class="btn-new-slide" onclick="addNewSlide()">+ New Slide</button>
+            </div>
+        </div>
+        
+        <div class="main-editor">
+            <div id="editor-view">
+                <div class="empty-state">
+                    <div class="empty-state-icon">👈</div>
+                    <p>Select a slide or create a new deck</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentPresentation = null;
+        let currentDeck = null;
+        let currentSlide = null;
+        let autoSaveTimeout = null;
+        let exportInterval = null;
+        
+        // Load presentations list
+        async function loadPresentationsList() {
+            const response = await fetch('/api/presentations');
+            const presentations = await response.json();
+            
+            const select = document.getElementById('presentation-select');
+            select.innerHTML = '<option value="">Select presentation...</option>' +
+                presentations.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+        
+        // Load presentation
+        async function loadPresentation() {
+            const select = document.getElementById('presentation-select');
+            const presentationId = select.value;
+            
+            if (!presentationId) return;
+            
+            const response = await fetch(`/api/presentations/${presentationId}`);
+            currentPresentation = await response.json();
+            renderDecks();
+            
+            // Start periodic .md export (every 60 seconds)
+            if (exportInterval) clearInterval(exportInterval);
+            exportInterval = setInterval(async () => {
+                if (currentPresentation) {
+                    await fetch(`/api/presentations/${currentPresentation.id}/auto-export`, {
+                        method: 'POST'
+                    });
+                    console.log('Auto-exported to .md file');
+                }
+            }, 60000);
+        }
+        
+        // Render decks
+        function renderDecks() {
+            const list = document.getElementById('decks-list');
+            
+            if (!currentPresentation || currentPresentation.decks.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📄</div>
+                        <p>No decks yet. Add a title slide!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = currentPresentation.decks.map((deck, deckIndex) => `
+                <div class="deck expanded" id="deck-${deck.id}">
+                    <div class="deck-header" onclick="toggleDeck(${deck.id})">
+                        <div class="deck-title">Week ${deck.week} - ${deck.date}</div>
+                        <div class="deck-toggle"></div>
+                    </div>
+                    <div class="deck-slides">
+                        ${deck.slides.map((slide, slideIndex) => `
+                            <div class="slide-item ${currentSlide && currentSlide.id === slide.id ? 'active' : ''}"
+                                 draggable="true"
+                                 data-slide-id="${slide.id}"
+                                 data-deck-id="${deck.id}"
+                                 ondragstart="handleDragStart(event)"
+                                 ondragover="handleDragOver(event)"
+                                 ondragenter="handleDragEnter(event)"
+                                 ondragleave="handleDragLeave(event)"
+                                 ondrop="handleDrop(event)"
+                                 ondragend="handleDragEnd(event)"
+                                 onclick="editSlide(${deck.id}, ${slide.id})">
+                                <div class="slide-item-title">${slide.isTitle ? '📌 Title Slide' : (slide.headline || '(No headline)')}</div>
+                                <div class="slide-item-class">${slide.slideClass || 'no class'}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Toggle deck
+        function toggleDeck(deckId) {
+            const deck = document.getElementById(`deck-${deckId}`);
+            deck.classList.toggle('expanded');
+        }
+        
+        // New presentation
+        async function newPresentation() {
+            const name = prompt('Presentation name:');
+            if (!name) return;
+            
+            const response = await fetch('/api/presentations', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            
+            const result = await response.json();
+            await loadPresentationsList();
+            document.getElementById('presentation-select').value = result.id;
+            await loadPresentation();
+        }
+        
+        // Add new deck
+        async function addNewDeck() {
+            if (!currentPresentation) {
+                alert('Please select or create a presentation first');
+                return;
+            }
+            
+            const week = prompt('Week number:');
+            const date = prompt('Date (MM/DD/YYYY):');
+            
+            if (!week || !date) return;
+            
+            const response = await fetch('/api/decks', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    presentation_id: currentPresentation.id,
+                    week,
+                    date
+                })
+            });
+            
+            await loadPresentation();
+        }
+        
+        // Add new slide
+        async function addNewSlide() {
+            if (!currentPresentation || currentPresentation.decks.length === 0) {
+                alert('Please create a deck (title slide) first');
+                return;
+            }
+            
+            const deckId = currentPresentation.decks[currentPresentation.decks.length - 1].id;
+            
+            await fetch('/api/slides', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    deck_id: deckId,
+                    class: 'template-bullets',
+                    headline: 'New Slide'
+                })
+            });
+            
+            await loadPresentation();
+        }
+        
+        // Edit slide
+        async function editSlide(deckId, slideId) {
+            const deck = currentPresentation.decks.find(d => d.id === deckId);
+            const slide = deck.slides.find(s => s.id === slideId);
+            
+            currentDeck = deck;
+            currentSlide = slide;
+            renderDecks();
+            renderEditor(slide);
+        }
+        
+        // Render editor
+        function renderEditor(slide) {
+            const isQuote = slide.slideClass && slide.slideClass.includes('quote');
+            const hasImage = slide.slideClass && slide.slideClass.includes('image');
+            const is2Col = slide.slideClass && slide.slideClass.includes('2col');
+            const isTitle = slide.isTitle;
+            
+            const editorView = document.getElementById('editor-view');
+            editorView.innerHTML = `
+                <div class="editor-header">
+                    <div style="display: flex; align-items: center;">
+                        <h2>${isTitle ? '📌 Title Slide' : 'Edit Slide'}</h2>
+                        <span class="save-status" id="save-status"></span>
+                    </div>
+                    <div class="editor-actions">
+                        <button onclick="saveSlide()">💾 Save Now</button>
+                        ${!isTitle ? '<button class="delete" onclick="deleteSlide()">🗑️ Delete</button>' : ''}
+                    </div>
+                </div>
+                <div class="editor-content">
+                    ${isTitle ? `
+                    <div class="form-group">
+                        <label>Week</label>
+                        <input type="text" id="deck-week" value="${currentDeck.week || ''}" placeholder="Week 1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="text" id="deck-date" value="${currentDeck.date || ''}" placeholder="January 15, 2025">
+                    </div>
+                    ` : `
+                    <div class="form-group">
+                        <label>Template</label>
+                        <select id="slide-class" onchange="updateEditorFields()">
+                            <option value="template-bullets" ${slide.slideClass === 'template-bullets' ? 'selected' : ''}>Bullets (White)</option>
+                            <option value="template-bullets-2col" ${slide.slideClass === 'template-bullets-2col' ? 'selected' : ''}>Bullets Two-Column (White)</option>
+                            <option value="template-bullets-image" ${slide.slideClass === 'template-bullets-image' ? 'selected' : ''}>Bullets with Image (White)</option>
+                            <option value="template-lines" ${slide.slideClass === 'template-lines' ? 'selected' : ''}>Lines / Text Only (White)</option>
+                            <option value="gold-bullets" ${slide.slideClass === 'gold-bullets' ? 'selected' : ''}>Bullets (Gold)</option>
+                            <option value="gold-bullets-2col" ${slide.slideClass === 'gold-bullets-2col' ? 'selected' : ''}>Bullets Two-Column (Gold)</option>
+                            <option value="gold-bullets-image" ${slide.slideClass === 'gold-bullets-image' ? 'selected' : ''}>Bullets with Image (Gold)</option>
+                            <option value="gold-bullets-image-split" ${slide.slideClass === 'gold-bullets-image-split' ? 'selected' : ''}>Bullets with Image Split</option>
+                            <option value="template-quote-headline" ${slide.slideClass === 'template-quote-headline' ? 'selected' : ''}>Quote (White)</option>
+                            <option value="gold-quote-headline" ${slide.slideClass === 'gold-quote-headline' ? 'selected' : ''}>Quote (Gold)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Headline</label>
+                        <input type="text" id="slide-headline" value="${slide.headline || ''}">
+                    </div>
+                    
+                    <div class="form-group" id="paragraph-group" style="display: ${isQuote ? 'none' : 'block'}">
+                        <label>Non-bullet Text (optional)</label>
+                        <textarea id="slide-paragraph" rows="3">${slide.paragraph || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-group" id="bullets-group" style="display: ${isQuote ? 'none' : 'block'}">
+                        <label>Bullet Points</label>
+                        <div class="bullet-list" id="bullet-list">
+                            ${slide.bullets && slide.bullets.length > 0
+                                ? slide.bullets.map(bullet => `
+                                    <div class="bullet-item">
+                                        <input type="text" value="${bullet}">
+                                        <button onclick="removeBullet(this)">✕</button>
+                                    </div>
+                                `).join('')
+                                : `<div class="bullet-item">
+                                    <input type="text" placeholder="Enter bullet point">
+                                    <button onclick="removeBullet(this)">✕</button>
+                                </div>`
+                            }
+                        </div>
+                        <button class="add-bullet-btn" onclick="addBullet()">+ Add Bullet</button>
+                    </div>
+                    
+                    <div class="form-group" id="quote-group" style="display: ${isQuote ? 'block' : 'none'}">
+                        <label>Quote Text</label>
+                        <textarea id="slide-quote" rows="4">${slide.quote || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-group" id="citation-group" style="display: ${isQuote ? 'block' : 'none'}">
+                        <label>Citation (optional)</label>
+                        <input type="text" id="slide-citation" value="${slide.quoteCitation || ''}" placeholder="Author Name, Year">
+                    </div>
+                    
+                    <div class="form-group" id="image-group" style="display: ${hasImage ? 'block' : 'none'}">
+                        <label>Image</label>
+                        <input type="hidden" id="slide-image" value="${slide.imagePath || ''}">
+                        <button type="button" onclick="document.getElementById('image-picker').click()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Choose Image
+                        </button>
+                        <input type="file" id="image-picker" accept="image/*" style="display: none;" onchange="handleImageSelection(event)">
+                        <div id="image-preview" style="margin-top: 15px; display: ${slide.imagePath ? 'block' : 'none'};">
+                            <img src="${slide.imagePath || ''}" style="max-width: 100%; max-height: 300px; border: 1px solid #ddd; border-radius: 4px; display: block;" onerror="this.style.display='none'">
+                            <div style="margin-top: 8px; font-size: 12px; color: #666;" id="image-path-display">${slide.imagePath || ''}</div>
+                        </div>
+                    </div>
+                    `}
+                </div>
+            `;
+            
+            // Add auto-save event listeners after render
+            setTimeout(() => {
+                if (isTitle) {
+                    document.getElementById('deck-week')?.addEventListener('input', triggerAutoSave);
+                    document.getElementById('deck-date')?.addEventListener('input', triggerAutoSave);
+                } else {
+                    document.getElementById('slide-class')?.addEventListener('change', triggerAutoSave);
+                    document.getElementById('slide-headline')?.addEventListener('input', triggerAutoSave);
+                    document.getElementById('slide-paragraph')?.addEventListener('input', triggerAutoSave);
+                    document.getElementById('slide-quote')?.addEventListener('input', triggerAutoSave);
+                    document.getElementById('slide-citation')?.addEventListener('input', triggerAutoSave);
+                    
+                    // Bullet inputs
+                    document.querySelectorAll('#bullet-list input').forEach(input => {
+                        input.addEventListener('input', triggerAutoSave);
+                    });
+                }
+            }, 100);
+        }
+        
+        function updateEditorFields() {
+            const slideClass = document.getElementById('slide-class').value;
+            const isQuote = slideClass.includes('quote');
+            const hasImage = slideClass.includes('image');
+            
+            document.getElementById('paragraph-group').style.display = isQuote ? 'none' : 'block';
+            document.getElementById('bullets-group').style.display = isQuote ? 'none' : 'block';
+            document.getElementById('quote-group').style.display = isQuote ? 'block' : 'none';
+            document.getElementById('citation-group').style.display = isQuote ? 'block' : 'none';
+            document.getElementById('image-group').style.display = hasImage ? 'block' : 'none';
+        }
+        
+        function handleImageSelection(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Create object URL for preview
+            const objectURL = URL.createObjectURL(file);
+            
+            // Update preview
+            const preview = document.getElementById('image-preview');
+            const img = preview.querySelector('img');
+            const pathDisplay = document.getElementById('image-path-display');
+            
+            img.src = objectURL;
+            img.style.display = 'block';
+            preview.style.display = 'block';
+            
+            // Store relative path (assume images go in assets/)
+            const imagePath = 'assets/' + file.name;
+            document.getElementById('slide-image').value = imagePath;
+            pathDisplay.textContent = imagePath;
+        }
+        
+        function addBullet() {
+            const bulletList = document.getElementById('bullet-list');
+            const bulletItem = document.createElement('div');
+            bulletItem.className = 'bullet-item';
+            bulletItem.innerHTML = `
+                <input type="text" placeholder="Enter bullet point">
+                <button onclick="removeBullet(this)">✕</button>
+            `;
+            bulletList.appendChild(bulletItem);
+        }
+        
+        function removeBullet(button) {
+            const bulletList = document.getElementById('bullet-list');
+            if (bulletList.children.length > 1) {
+                button.parentElement.remove();
+            }
+        }
+        
+        // Save slide
+        async function saveSlide(showAlert = true) {
+            if (!currentSlide) return;
+            
+            const statusEl = document.getElementById('save-status');
+            if (statusEl) {
+                statusEl.textContent = 'Saving...';
+                statusEl.className = 'save-status saving';
+            }
+            
+            // If this is a title slide, save the deck info instead
+            if (currentSlide.isTitle) {
+                const deckData = {
+                    week: document.getElementById('deck-week').value,
+                    date: document.getElementById('deck-date').value
+                };
+                
+                await fetch(`/api/decks/${currentDeck.id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(deckData)
+                });
+            } else {
+                // Regular slide save
+                const bulletInputs = document.querySelectorAll('#bullet-list input');
+                const bullets = Array.from(bulletInputs)
+                    .map(input => input.value.trim())
+                    .filter(bullet => bullet !== '');
+                
+                const data = {
+                    slideClass: document.getElementById('slide-class').value,
+                    headline: document.getElementById('slide-headline').value,
+                    paragraph: document.getElementById('slide-paragraph')?.value || '',
+                    bullets: bullets,
+                    quote: document.getElementById('slide-quote')?.value || '',
+                    quoteCitation: document.getElementById('slide-citation')?.value || '',
+                    imagePath: document.getElementById('slide-image')?.value || ''
+                };
+                
+                await fetch(`/api/slides/${currentSlide.id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+            }
+            
+            await loadPresentation();
+            
+            if (statusEl) {
+                statusEl.textContent = 'Saved ✓';
+                statusEl.className = 'save-status saved';
+                setTimeout(() => {
+                    if (statusEl) statusEl.textContent = '';
+                }, 2000);
+            }
+            
+            if (showAlert) {
+                alert('Slide saved!');
+            }
+        }
+        
+        // Auto-save with debouncing
+        function triggerAutoSave() {
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+            }
+            
+            const statusEl = document.getElementById('save-status');
+            if (statusEl) {
+                statusEl.textContent = 'Unsaved changes...';
+                statusEl.className = 'save-status';
+            }
+            
+            autoSaveTimeout = setTimeout(() => {
+                saveSlide(false);
+            }, 2000); // Save 2 seconds after typing stops
+        }
+        
+        // Delete slide
+        async function deleteSlide() {
+            if (!currentSlide || !confirm('Delete this slide?')) return;
+            
+            await fetch(`/api/slides/${currentSlide.id}`, {method: 'DELETE'});
+            currentSlide = null;
+            await loadPresentation();
+            
+            document.getElementById('editor-view').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">👈</div>
+                    <p>Select a slide</p>
+                </div>
+            `;
+        }
+        
+        // Drag and drop handlers
+        let draggedSlide = null;
+        
+        function handleDragStart(event) {
+            draggedSlide = {
+                slideId: parseInt(event.target.getAttribute('data-slide-id')),
+                deckId: parseInt(event.target.getAttribute('data-deck-id'))
+            };
+            event.target.classList.add('dragging');
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+        }
+        
+        function handleDragEnter(event) {
+            const target = event.target.closest('.slide-item');
+            if (target) target.classList.add('drag-over');
+        }
+        
+        function handleDragLeave(event) {
+            const target = event.target.closest('.slide-item');
+            if (target) target.classList.remove('drag-over');
+        }
+        
+        async function handleDrop(event) {
+            event.preventDefault();
+            const target = event.target.closest('.slide-item');
+            if (!target) return;
+            
+            target.classList.remove('drag-over');
+            
+            const targetSlideId = parseInt(target.getAttribute('data-slide-id'));
+            const targetDeckId = parseInt(target.getAttribute('data-deck-id'));
+            
+            if (draggedSlide.slideId === targetSlideId) return;
+            
+            // Get deck and reorder slides
+            const deck = currentPresentation.decks.find(d => d.id === draggedSlide.deckId);
+            const draggedSlideObj = deck.slides.find(s => s.id === draggedSlide.slideId);
+            const targetSlideObj = deck.slides.find(s => s.id === targetSlideId);
+            
+            const oldIndex = deck.slides.indexOf(draggedSlideObj);
+            const newIndex = deck.slides.indexOf(targetSlideObj);
+            
+            // Remove from old position
+            deck.slides.splice(oldIndex, 1);
+            // Insert at new position
+            deck.slides.splice(newIndex, 0, draggedSlideObj);
+            
+            // Update order_index for all slides
+            const updates = deck.slides.map((slide, index) => ({
+                id: slide.id,
+                orderIndex: index
+            }));
+            
+            await fetch('/api/slides/reorder', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ slides: updates })
+            });
+            
+            await loadPresentation();
+        }
+        
+        function handleDragEnd(event) {
+            event.target.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        }
+        
+        // Export presentation
+        async function exportPresentation() {
+            if (!currentPresentation) return;
+            
+            window.location.href = `/api/presentations/${currentPresentation.id}/export`;
+        }
+        
+        // Preview presentation
+        async function previewPresentation() {
+            if (!currentPresentation) {
+                alert('No presentation selected');
+                return;
+            }
+            
+            // Trigger build
+            const response = await fetch(`/api/presentations/${currentPresentation.id}/preview`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Open presentation.html with cache-busting timestamp
+                window.open('/presentation.html?t=' + Date.now(), '_blank');
+            } else {
+                alert('Preview failed: ' + (result.error || 'Unknown error'));
+            }
+        }
+        
+        // Import presentation
+        async function importPresentation(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const content = await file.text();
+            
+            const response = await fetch('/api/presentations/import', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    content: content,
+                    filename: file.name
+                })
+            });
+            
+            const result = await response.json();
+            await loadPresentationsList();
+            document.getElementById('presentation-select').value = result.id;
+            await loadPresentation();
+            
+            alert(`Imported ${file.name} successfully!`);
+        }
+        
+        // Delete presentation
+        async function deletePresentation() {
+            if (!currentPresentation) {
+                alert('No presentation selected');
+                return;
+            }
+            
+            if (!confirm(`Delete "${currentPresentation.name}"? This will remove all decks and slides.`)) {
+                return;
+            }
+            
+            await fetch(`/api/presentations/${currentPresentation.id}`, {
+                method: 'DELETE'
+            });
+            
+            currentPresentation = null;
+            await loadPresentationsList();
+            document.getElementById('presentation-select').value = '';
+            document.getElementById('decks-list').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📄</div>
+                    <p>Create or select a presentation</p>
+                </div>
+            `;
+            document.getElementById('editor-view').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">👈</div>
+                    <p>Select a slide or create a new deck</p>
+                </div>
+            `;
+            
+            alert('Presentation deleted!');
+        }
+        
+        // Initialize
+        loadPresentationsList();
+    </script>
+</body>
+</html>

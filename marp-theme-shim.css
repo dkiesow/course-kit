@@ -1,0 +1,309 @@
+/* @theme classroom */
+
+/* Prefer local Helvetica Neue when available for consistent rendering in previews */
+@font-face {
+  font-family: 'Helvetica Neue Local';
+  src: local('Helvetica Neue'), local('HelveticaNeue'), local('Helvetica Neue LT Pro'), local('HelveticaNeueLTStd');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: #666666;
+  --accent: #003366;      /* institutional blue */
+  --warn: #8b0000;        /* ethical tension / problems */
+  --good: #0a5c36;        /* "Right" / values */
+  --highlight: #f2f2f2;
+}
+
+section {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: 'Helvetica Neue Local', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  padding: 60px;
+}
+
+/* Headings */
+h1 {
+  font-family: 'Helvetica Neue Local', "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 300;
+  font-size: 74px;
+  color: #000000;
+  margin-bottom: 0.4em;
+}
+
+h2 {
+  font-size: 1.8em;
+  margin-top: 0.5em;
+}
+
+h3 {
+  font-size: 1.3em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+/* Body text */
+p, li {
+  font-size: 1.05em;
+  line-height: 1.5;
+}
+
+/* Lists */
+ul {
+  margin-top: 1em;
+}
+
+li {
+  margin-bottom: 0.4em;
+  font-family: 'Helvetica Neue Local', "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 300;
+  font-size: 60px;
+  color: #434343;
+}
+
+/* Blockquotes (ethics, creed, citations) */
+blockquote {
+  border-left: 4px solid var(--accent);
+  padding-left: 1em;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Emphasis blocks */
+strong {
+  color: var(--accent);
+}
+
+/* Slide types */
+
+/* Title slide */
+section.title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+section.title h1 {
+  font-size: 74px;
+  font-family: 'Helvetica Neue Local', "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 300;
+  color: #000000;
+}
+
+section.title p {
+  color: var(--muted);
+}
+
+/* Chapter divider */
+section.chapter {
+  background-color: var(--highlight);
+}
+
+section.chapter h1 {
+  font-size: 2.6em;
+}
+
+/* Problem slides */
+section.problem h2 {
+  color: var(--warn);
+}
+
+section.problem strong {
+  color: var(--warn);
+}
+
+/* "Right / Wrong" contrast */
+section.wrong {
+  background-color: #fff5f5;
+}
+
+section.right {
+  background-color: #f4fbf7;
+}
+
+/* Data / metrics */
+section.metrics ul {
+  columns: 2;
+}
+
+/* Closing / thanks */
+section.closing {
+  text-align: center;
+}
+
+footer {
+  position: absolute;
+  bottom: 30px;
+  font-size: 0.75em;
+  color: var(--muted);
+}
+
+/* Slide templates: photo title, bullets, quote, Mizzou gold */
+
+section.photo-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+  color: #ffffff;
+  padding: 80px;
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  /* Set a default image — replace with your asset or override per-slide */
+  background-image: url('assets/title-photo.jpg');
+}
+
+section.photo-title::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.25));
+  z-index: 0;
+}
+
+section.photo-title h1,
+section.photo-title h2,
+section.photo-title p,
+section.photo-title ul,
+section.photo-title li {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+}
+
+section.template-bullets h1 {
+  color: var(--accent);
+  margin-bottom: 0.4em;
+}
+
+section.template-bullets ul {
+  margin-top: 0.6em;
+  padding-left: 1.2em;
+  max-width: 60%;
+}
+
+section.template-quote {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding: 80px;
+  min-height: 100%;
+}
+
+section.template-quote blockquote {
+  border-left: none;
+  font-size: 1.8em;
+  font-style: italic;
+  color: var(--muted);
+  max-width: 900px;
+  margin: 0;
+}
+
+section.mizzou {
+  background-color: #FFC72C; /* Mizzou gold */
+  color: #000000;
+  --bg: #FFC72C;
+  --fg: #000000;
+  --muted: rgba(0,0,0,0.75);
+  --accent: #000000;
+}
+/* High-specificity overrides to ensure preview applies Mizzou background */
+html body section.mizzou,
+html body section[class~="mizzou"],
+html body .marpit__slide.mizzou,
+html body .slide.mizzou,
+html body .marp section.mizzou {
+  background-color: #FFC72C !important;
+  background-image: none !important;
+  color: #000000 !important;
+  --bg: #FFC72C !important;
+  --fg: #000000 !important;
+}
+
+html body section.mizzou h1,
+html body section.mizzou h2,
+html body section.mizzou p,
+html body section.mizzou li {
+  color: #000000 !important;
+}
+
+/* Strong override: force background in case Marp/default theme sets it elsewhere */
+section.mizzou {
+  background-color: #FFC72C !important;
+  background-image: none !important;
+  color: #000000 !important;
+}
+
+section.mizzou h1,
+section.mizzou h2,
+section.mizzou p,
+section.mizzou li {
+  color: #000000 !important;
+}
+
+/* Marp variable compatibility for preview/scoped themes */
+section.mizzou {
+  --bgColor-default: #FFC72C !important;
+  --bgColor-muted: #FFC72C !important;
+  --bgColor-attention-muted: #FFC72C !important;
+  background-color: var(--bgColor-default) !important;
+}
+
+html body section.mizzou {
+  --bgColor-default: #FFC72C !important;
+  background-color: var(--bgColor-default) !important;
+}
+
+/* Ensure `mizzou` background applies inside Marp/VSC preview's SVG foreignObject wrapper */
+div#\:\$p > svg > foreignObject > section.mizzou,
+div#\:\$p > svg > foreignObject > section[class~="mizzou"],
+div#\:\$p > svg > foreignObject > section[data-class~="mizzou"] {
+  background-color: #FFC72C !important;
+  background-image: none !important;
+  color: #000000 !important;
+  --bgColor-default: #FFC72C !important;
+  --bgColor-muted: #FFC72C !important;
+}
+
+/* Aggressive preview override: force Helvetica Neue for all slide content in VS Code/Marp preview */
+div#\:\$p > svg > foreignObject > section,
+div#\:\$p > svg > foreignObject > section * {
+  font-family: 'Helvetica Neue Local', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  font-weight: 300 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+div#\:\$p > svg > foreignObject > section h1 {
+  font-size: 74px !important;
+  color: #000000 !important;
+}
+
+div#\:\$p > svg > foreignObject > section li {
+  font-size: 60px !important;
+  color: #434343 !important;
+}
+
+/* Preview wrapper: force Helvetica Neue for headings and bullets in VS Code/Marp preview */
+div#\:\$p > svg > foreignObject > section h1,
+div#\:\$p > svg > foreignObject > section h2,
+div#\:\$p > svg > foreignObject > section li {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  font-weight: 300 !important;
+}
+div#\:\$p > svg > foreignObject > section h1 {
+  font-size: 74px !important;
+  color: #000000 !important;
+}
+div#\:\$p > svg > foreignObject > section li {
+  font-size: 60px !important;
+  color: #434343 !important;
+}

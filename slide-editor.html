@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marp Presentation Editor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        h2 {
+            font-size: 16px;
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .bullet-list {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: #fafafa;
+        }
+
+        .bullet-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .bullet-item input {
+            flex: 1;
+        }
+
+        .bullet-item button {
+            padding: 8px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .bullet-item button:hover {
+            background: #c82333;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .add-bullet-btn {
+            background: #28a745;
+        }
+
+        .add-bullet-btn:hover {
+            background: #218838;
+        }
+
+        #markdown-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 300px;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            margin-top: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+
+        .info {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #004085;
+        }
+
+        .image-preview {
+            margin-top: 10px;
+            max-width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .image-preview.show {
+            display: block;
+        }
+
+        .column-divider {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <h1>📝 Slide Editor</h1>
+            
+            <div class="info">
+                Create slides for your Marp presentation. Fill in the fields below and click "Generate Markdown" to create the slide code.
+            </div>
+
+            <div class="form-group">
+                <label for="template">Template</label>
+                <select id="template">
+                    <option value="template-bullets">Bullets (White)</option>
+                    <option value="template-bullets-2col">Bullets Two-Column (White)</option>
+                    <option value="template-bullets-image">Bullets with Image (White)</option>
+                    <option value="gold-bullets">Bullets (Gold)</option>
+                    <option value="gold-bullets-2col">Bullets Two-Column (Gold)</option>
+                    <option value="gold-bullets-image">Bullets with Image (Gold)</option>
+                    <option value="gold-bullets-image-split">Bullets with Image Split (Gold/White)</option>
+                    <option value="template-quote-headline">Quote with Headline (White)</option>
+                    <option value="gold-quote-headline">Quote with Headline (Gold)</option>
+                    <option value="agenda">Agenda</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="headline">Headline</label>
+                <input type="text" id="headline" placeholder="Enter slide headline">
+            </div>
+
+            <div class="form-group" id="paragraph-group">
+                <label for="paragraph">Non-bullet Text (optional)</label>
+                <textarea id="paragraph" rows="3" placeholder="Optional paragraph text above bullets"></textarea>
+            </div>
+
+            <div class="form-group" id="bullets-group">
+                <label>Bullet Points</label>
+                <div class="bullet-list" id="bullet-list">
+                    <div class="bullet-item">
+                        <input type="text" placeholder="Enter bullet point">
+                        <button onclick="removeBullet(this)">✕</button>
+                    </div>
+                </div>
+                <button class="add-bullet-btn" onclick="addBullet()">+ Add Bullet</button>
+            </div>
+
+            <div class="form-group" id="column-divider" style="display: none;">
+                <div class="column-divider">
+                    <strong>Column Divider</strong> - Bullets above will be in the left column, bullets below in the right column
+                </div>
+            </div>
+
+            <div class="form-group" id="quote-group" style="display: none;">
+                <label for="quote">Quote Text</label>
+                <textarea id="quote" rows="4" placeholder="Enter quote text"></textarea>
+            </div>
+
+            <div class="form-group" id="quote-citation-group" style="display: none;">
+                <label for="quote-citation">Citation (optional)</label>
+                <input type="text" id="quote-citation" placeholder="— Author Name">
+            </div>
+
+            <div class="form-group" id="image-group" style="display: none;">
+                <label for="image-path">Image Path</label>
+                <input type="text" id="image-path" placeholder="assets/image.jpg">
+                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                    Path relative to presentation.md
+                </small>
+            </div>
+
+            <div class="button-group">
+                <button onclick="generateMarkdown()">Generate Markdown</button>
+                <button onclick="clearForm()" style="background: #6c757d;">Clear</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h1>📋 Generated Markdown</h1>
+            
+            <div id="markdown-output">Your markdown will appear here...</div>
+            
+            <button class="copy-btn" onclick="copyMarkdown()">Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        const template = document.getElementById('template');
+        const bulletsGroup = document.getElementById('bullets-group');
+        const paragraphGroup = document.getElementById('paragraph-group');
+        const quoteGroup = document.getElementById('quote-group');
+        const quoteCitationGroup = document.getElementById('quote-citation-group');
+        const imageGroup = document.getElementById('image-group');
+        const columnDivider = document.getElementById('column-divider');
+
+        template.addEventListener('change', updateFormFields);
+
+        function updateFormFields() {
+            const templateValue = template.value;
+            const isQuote = templateValue.includes('quote');
+            const hasImage = templateValue.includes('image');
+            const is2Col = templateValue.includes('2col');
+
+            bulletsGroup.style.display = isQuote ? 'none' : 'block';
+            paragraphGroup.style.display = isQuote ? 'none' : 'block';
+            quoteGroup.style.display = isQuote ? 'block' : 'none';
+            quoteCitationGroup.style.display = isQuote ? 'block' : 'none';
+            imageGroup.style.display = hasImage ? 'block' : 'none';
+            columnDivider.style.display = is2Col ? 'block' : 'none';
+        }
+
+        function addBullet() {
+            const bulletList = document.getElementById('bullet-list');
+            const bulletItem = document.createElement('div');
+            bulletItem.className = 'bullet-item';
+            bulletItem.innerHTML = `
+                <input type="text" placeholder="Enter bullet point">
+                <button onclick="removeBullet(this)">✕</button>
+            `;
+            bulletList.appendChild(bulletItem);
+        }
+
+        function removeBullet(button) {
+            const bulletList = document.getElementById('bullet-list');
+            if (bulletList.children.length > 1) {
+                button.parentElement.remove();
+            }
+        }
+
+        function generateMarkdown() {
+            const templateValue = template.value;
+            const headline = document.getElementById('headline').value;
+            const paragraph = document.getElementById('paragraph').value;
+            const imagePath = document.getElementById('image-path').value;
+            const quote = document.getElementById('quote').value;
+            const quoteCitation = document.getElementById('quote-citation').value;
+            
+            const bulletInputs = document.querySelectorAll('#bullet-list input');
+            const bullets = Array.from(bulletInputs)
+                .map(input => input.value.trim())
+                .filter(bullet => bullet !== '');
+
+            let markdown = `<!-- _class: ${templateValue} -->\n`;
+            
+            if (headline) {
+                markdown += `# ${headline}\n`;
+            }
+
+            const isQuote = templateValue.includes('quote');
+            const is2Col = templateValue.includes('2col');
+
+            if (isQuote) {
+                if (quote) {
+                    markdown += `> ${quote}\n`;
+                    if (quoteCitation) {
+                        markdown += `>\n> ${quoteCitation}\n`;
+                    }
+                }
+            } else {
+                if (paragraph) {
+                    markdown += `\n${paragraph}\n`;
+                }
+
+                if (bullets.length > 0) {
+                    markdown += '\n';
+                    
+                    if (is2Col) {
+                        // For 2-column, wrap bullets in divs
+                        const midpoint = Math.ceil(bullets.length / 2);
+                        const leftBullets = bullets.slice(0, midpoint);
+                        const rightBullets = bullets.slice(midpoint);
+
+                        markdown += '<div>\n\n';
+                        leftBullets.forEach(bullet => {
+                            markdown += `- ${bullet}\n`;
+                        });
+                        markdown += '\n</div>\n<div>\n\n';
+                        rightBullets.forEach(bullet => {
+                            markdown += `- ${bullet}\n`;
+                        });
+                        markdown += '\n</div>\n';
+                    } else {
+                        bullets.forEach(bullet => {
+                            markdown += `- ${bullet}\n`;
+                        });
+                    }
+                }
+            }
+
+            if (imagePath && templateValue.includes('image')) {
+                markdown += `\n![](${imagePath})\n`;
+            }
+
+            document.getElementById('markdown-output').textContent = markdown;
+        }
+
+        function copyMarkdown() {
+            const markdown = document.getElementById('markdown-output').textContent;
+            navigator.clipboard.writeText(markdown).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        function clearForm() {
+            document.getElementById('headline').value = '';
+            document.getElementById('paragraph').value = '';
+            document.getElementById('image-path').value = '';
+            document.getElementById('quote').value = '';
+            document.getElementById('quote-citation').value = '';
+            
+            const bulletList = document.getElementById('bullet-list');
+            bulletList.innerHTML = `
+                <div class="bullet-item">
+                    <input type="text" placeholder="Enter bullet point">
+                    <button onclick="removeBullet(this)">✕</button>
+                </div>
+            `;
+            
+            document.getElementById('markdown-output').textContent = 'Your markdown will appear here...';
+        }
+
+        // Initialize form fields based on default template
+        updateFormFields();
+    </script>
+</body>
+</html>
