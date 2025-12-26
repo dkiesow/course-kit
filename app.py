@@ -378,11 +378,15 @@ COURSE_TITLE: "Journalism Innovation"
         
         # Run Marp CLI to convert
         if format_type == 'pdf':
-            cmd = f'marp {temp_md} -o {output_file} --allow-local-files --pdf --theme presentation-styles.css'
+            cmd = f'marp "{temp_md}" -o "{output_file}" --allow-local-files --pdf --theme presentation-styles.css'
         else:  # pptx
-            cmd = f'marp {temp_md} -o {output_file} --allow-local-files --pptx --theme presentation-styles.css'
+            cmd = f'marp "{temp_md}" -o "{output_file}" --allow-local-files --pptx --theme presentation-styles.css'
         
+        print(f"Running command: {cmd}")
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        print(f"Return code: {result.returncode}")
+        print(f"Stdout: {result.stdout}")
+        print(f"Stderr: {result.stderr}")
         
         # Clean up temp file
         if os.path.exists(temp_md):
@@ -391,6 +395,10 @@ COURSE_TITLE: "Journalism Innovation"
         if result.returncode != 0:
             print(f"Marp error: {result.stderr}")
             return jsonify({'error': f'Marp conversion failed: {result.stderr}'}), 500
+        
+        # Check if output file was created
+        if not os.path.exists(output_file):
+            return jsonify({'error': f'Output file was not created: {output_file}'}), 500
         
         # Send file
         return send_file(
