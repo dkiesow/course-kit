@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Marp presentation with variable preprocessing",
   "scripts": {
-    "build": "node build.js && marp presentation.output.md -o presentation.html --allow-local-files --html --theme presentation-styles.css",
+    "build": "node build.js && marp output/presentation.output.md -o output/presentation.html --allow-local-files --html --theme presentation-styles.css",
     "watch": "nodemon -w presentation.template.md -w variables.json -x 'npm run build'",
-    "export:pdf": "npm run build && marp presentation.md --pdf --allow-local-files --theme presentation-styles.css",
-    "export:pptx": "npm run build && marp presentation.md --pptx --allow-local-files --theme presentation-styles.css"
+    "export:pdf": "npm run build && marp output/presentation.output.md --pdf -o output/presentation.pdf --allow-local-files --theme presentation-styles.css",
+    "export:pptx": "npm run build && marp output/presentation.output.md --pptx -o output/presentation.pptx --allow-local-files --theme presentation-styles.css"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"

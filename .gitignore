@@ -2,5 +2,5 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
-presentation.output.md
+output/
 nohup.out

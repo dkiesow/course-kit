@@ -61,6 +61,6 @@ for (let i = 0; i < parts.length; i++) {
 }
 
 // Write output
-fs.writeFileSync('presentation.output.md', result);
-console.log('✓ Generated presentation.output.md from source');
+fs.writeFileSync('output/presentation.output.md', result);
+console.log('✓ Generated output/presentation.output.md from source');
 console.log('  Global variables:', Object.keys(globalVars).join(', '));

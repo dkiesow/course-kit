@@ -396,7 +396,7 @@ def preview_presentation(presentation_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-    return jsonify({'success': True, 'file': 'presentation.html'})
+    return jsonify({'success': True, 'file': 'output/presentation.html'})
 
 @app.route('/api/presentations/<int:presentation_id>/export', methods=['GET'])
 def export_presentation(presentation_id):

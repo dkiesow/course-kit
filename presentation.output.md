@@ -10,9 +10,9 @@ WEEK: "Week One"
 DATE: "1/21/26"
 _class: title
 -->
-# {{COURSE_TITLE}}
-## {{WEEK}}
-{{DATE}}
+# Journalism Innovation
+## Week One
+1/21/26
 
 
 ---
@@ -123,10 +123,10 @@ Your final project for the semester is a 10-page report on 'the future of news.�
 
 ---
 
-<!-- _class: template-lines -->
+<!-- _class: template-bullets -->
 # Wednesday Guest Speakers
 
-Usually on Zoom - attend from anywhere - but be prepared to ask questions
+- Usually on Zoom - attend from anywhere - but be prepared to ask questions
 
 
 ---
@@ -181,6 +181,8 @@ Management
 Psychology
 Economics
 
+- Fourth bullet point
+
 
 ---
 
@@ -212,9 +214,6 @@ I believe that advertising, news and editorial columns should alike serve the be
 # News needs journalists who…
 
 - Understand the business
-- Understand audience needs
-- Can uphold editorial values and ethics
-- Can lead
 
 
 ---
@@ -253,70 +252,46 @@ News Product Alliance
 
 ---
 
-<!-- _class: template-bullets-image -->
+<!-- _class: template-lines -->
 # Human-Centered Design
 
 A design and development process that identifies problems and solutions based on (human) audience needs and insights.
 
-- A design and development process that identifies problems and solutions based on (human) audience needs and insights.
-
-![Image](assets/venn.png)
-
 
 ---
 
-<!-- _class: template-lines -->
-# Defining questions
-
-(needs image)
+<!-- _class: template-bullets -->
+# New Slide
 
 
 ---
 
 <!-- _class: template-bullets -->
-# Buile Measure Learn
-
-Needs image
+# New Slide
 
 
 ---
 
 <!-- _class: template-bullets -->
-# Social and Audience Strategy
-
-Needs two column
+# New Slide
 
 
 ---
 
 <!-- _class: template-bullets -->
-# Social and Audience Strategy
-
-Students will learn to apply critical thinking at the intersection of journalism, technology and audience needs. You will learn and practice audience engagement tactics on social media platforms and research and develop organizational strategy by understanding how different digital channels: web, app, email, or podcast can be used to support community information needs and support a sustainable business. You will learn methods of news innovation to align organizational and community efforts in support of quality journalism.
-Relevant job titles: Digital media producer, news product manager, editor, director of audience growth, audience development project manager, social media editor, audience engagement producer, product operations manager, director of product, strategist, UX researcher, analytics & insights editor, head of strategy
+# New Slide
 
 
 ---
 
 <!-- _class: template-bullets -->
-# The Mission of News
-
-- Help a community to understand itself
-- Inform discussions and decisions that favor a healthy civic life
-- Enabled by a wall between business and editorial
-- But, the digital economy knocks down the wall
+# New Slide
 
 
 ---
 
-<!-- _class: template-lines -->
-
-Information used to be expensive to distribute.
-Then came the Web.
-Information used to be expensive to access.
-Then came mobile.
-Information used to be expensive to produce.
-Then came AI.
+<!-- _class: template-bullets -->
+# New Slide
 
 
 ---
@@ -334,18 +309,6 @@ WEEK: "Two"
 DATE: "1/26/2026"
 _class: title
 -->
-# {{COURSE_TITLE}}
-## {{WEEK}}
-{{DATE}}
-
-
----
-
-<!-- _class: template-bullets -->
-# New Slide
-
-
----
-
-<!-- _class: template-bullets -->
-# New Slide
+# Journalism Innovation
+## Two
+1/26/2026
