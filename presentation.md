@@ -58,7 +58,7 @@ _class: title
 - Not everything in a chapter will be reviewed in class
 - Some chapters will receive more attention than others
 
-![Image](assets/cover.png)
+![Image](/assets/cover.png)
 
 
 ---
@@ -239,7 +239,7 @@ News Product Alliance
 - Sign-up: https://newsproduct.org/slack
 - Sign-up: https://newsproduct.org/slack
 
-![Image](assets/NPA-ABCs.png)
+![Image](/assets/NPA-ABCs.png)
 
 
 ---
@@ -261,7 +261,7 @@ A design and development process that identifies problems and solutions based on
 
 - A design and development process that identifies problems and solutions based on (human) audience needs and insights.
 
-![Image](assets/venn.png)
+![Image](/assets/venn.png)
 
 
 ---
