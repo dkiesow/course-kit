@@ -365,8 +365,13 @@ COURSE_TITLE: "Journalism Innovation"
                     content += f'\n![Image]({image_path})\n'
         
         # Write temporary markdown file
+        # Sanitize filename - replace slashes and other problematic characters
+        safe_week = str(week).replace('/', '-')
+        safe_date = str(date).replace('/', '-').replace(' ', '_')
+        
         temp_md = f'output/deck_{deck_id}_temp.md'
-        output_file = f'output/Week_{week}_{date}.{format_type}'
+        output_file = f'output/Week_{safe_week}_{safe_date}.{format_type}'
+        download_name = f'Week_{safe_week}_{safe_date}.{format_type}'
         
         with open(temp_md, 'w') as f:
             f.write(content)
@@ -391,7 +396,7 @@ COURSE_TITLE: "Journalism Innovation"
         return send_file(
             output_file,
             as_attachment=True,
-            download_name=f'Week_{week}_{date}.{format_type}',
+            download_name=download_name,
             mimetype='application/pdf' if format_type == 'pdf' else 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
         )
     except Exception as e:
