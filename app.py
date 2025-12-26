@@ -333,6 +333,7 @@ COURSE_TITLE: "Journalism Innovation"
                 # Determine what fields to export based on template type
                 is_quote_template = slide_class and 'quote' in slide_class
                 is_image_template = slide_class and 'image' in slide_class
+                is_text_only = slide_class and 'lines' in slide_class
                 
                 if is_quote_template:
                     # Quote templates: only export quote and citation
@@ -345,23 +346,29 @@ COURSE_TITLE: "Journalism Innovation"
                     if headline:
                         slide_md += f'# {headline}\n'
                     
-                    if paragraph:
-                        slide_md += f'\n{paragraph}\n'
-                    
-                    if bullets:
-                        slide_md += '\n'
-                        if slide_class and '2col' in slide_class:
-                            midpoint = (len(bullets) + 1) // 2
-                            slide_md += '<div>\n\n'
-                            for bullet in bullets[:midpoint]:
-                                slide_md += f'- {bullet}\n'
-                            slide_md += '\n</div>\n<div>\n\n'
-                            for bullet in bullets[midpoint:]:
-                                slide_md += f'- {bullet}\n'
-                            slide_md += '\n</div>\n'
-                        else:
-                            for bullet in bullets:
-                                slide_md += f'- {bullet}\n'
+                    if is_text_only:
+                        # Text-only template: show paragraph, skip bullets
+                        if paragraph:
+                            slide_md += f'\n{paragraph}\n'
+                    else:
+                        # Bullet templates: show paragraph (if any) then bullets
+                        if paragraph:
+                            slide_md += f'\n{paragraph}\n'
+                        
+                        if bullets:
+                            slide_md += '\n'
+                            if slide_class and '2col' in slide_class:
+                                midpoint = (len(bullets) + 1) // 2
+                                slide_md += '<div>\n\n'
+                                for bullet in bullets[:midpoint]:
+                                    slide_md += f'- {bullet}\n'
+                                slide_md += '\n</div>\n<div>\n\n'
+                                for bullet in bullets[midpoint:]:
+                                    slide_md += f'- {bullet}\n'
+                                slide_md += '\n</div>\n'
+                            else:
+                                for bullet in bullets:
+                                    slide_md += f'- {bullet}\n'
                     
                     # Only export image if template supports images
                     if is_image_template and image_path:
@@ -487,6 +494,7 @@ COURSE_TITLE: "Journalism Innovation"
                 # Determine what fields to export based on template type
                 is_quote_template = slide_class and 'quote' in slide_class
                 is_image_template = slide_class and 'image' in slide_class
+                is_text_only = slide_class and 'lines' in slide_class
                 
                 if is_quote_template:
                     # Quote templates: only export quote and citation
@@ -499,23 +507,29 @@ COURSE_TITLE: "Journalism Innovation"
                     if headline:
                         slide_md += f'# {headline}\n'
                     
-                    if paragraph:
-                        slide_md += f'\n{paragraph}\n'
-                    
-                    if bullets:
-                        slide_md += '\n'
-                        if slide_class and '2col' in slide_class:
-                            midpoint = (len(bullets) + 1) // 2
-                            slide_md += '<div>\n\n'
-                            for bullet in bullets[:midpoint]:
-                                slide_md += f'- {bullet}\n'
-                            slide_md += '\n</div>\n<div>\n\n'
-                            for bullet in bullets[midpoint:]:
-                                slide_md += f'- {bullet}\n'
-                            slide_md += '\n</div>\n'
-                        else:
-                            for bullet in bullets:
-                                slide_md += f'- {bullet}\n'
+                    if is_text_only:
+                        # Text-only template: show paragraph, skip bullets
+                        if paragraph:
+                            slide_md += f'\n{paragraph}\n'
+                    else:
+                        # Bullet templates: show paragraph (if any) then bullets
+                        if paragraph:
+                            slide_md += f'\n{paragraph}\n'
+                        
+                        if bullets:
+                            slide_md += '\n'
+                            if slide_class and '2col' in slide_class:
+                                midpoint = (len(bullets) + 1) // 2
+                                slide_md += '<div>\n\n'
+                                for bullet in bullets[:midpoint]:
+                                    slide_md += f'- {bullet}\n'
+                                slide_md += '\n</div>\n<div>\n\n'
+                                for bullet in bullets[midpoint:]:
+                                    slide_md += f'- {bullet}\n'
+                                slide_md += '\n</div>\n'
+                            else:
+                                for bullet in bullets:
+                                    slide_md += f'- {bullet}\n'
                     
                     # Only export image if template supports images
                     if is_image_template and image_path:

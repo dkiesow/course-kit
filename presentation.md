@@ -58,7 +58,7 @@ _class: title
 - Not everything in a chapter will be reviewed in class
 - Some chapters will receive more attention than others
 
-![Image](/assets/cover.png)
+![Image](assets/cover.png)
 
 
 ---
@@ -92,8 +92,20 @@ Your final project for the semester is a 10-page report on 'the future of news.â
 
 ---
 
-<!-- _class: template-bullets -->
+<!-- _class: template-lines -->
 # Unit Quizzes
+
+**Quiz ONE** Week 4 
+*Chapters 1-4*
+
+**Quiz TWO** Week 8 
+*Chapters 5-6*
+
+**Quiz THREE** Week 12 
+*Chapters 7-8*
+
+**Quiz FOUR** Week 15 
+*Chapters 9-11*
 
 - Quiz ONE Week 4 Chapters 1-4
 - Quiz TWO Week 8 Chapters 5-6
@@ -171,15 +183,15 @@ Weighted Categories
 
 ---
 
-<!-- _class: template-lines -->
+<!-- _class: template-bullets -->
 # The class discusses
 
-Journalism
-Business
-Marketing
-Management
-Psychology
-Economics
+- Journalism
+- Business
+- Marketing
+- Management
+- Psychology
+- Economics
 
 
 ---
@@ -238,7 +250,7 @@ News Product Alliance
 - Sign-up: https://newsproduct.org/slack
 - Sign-up: https://newsproduct.org/slack
 
-![Image](/assets/NPA-ABCs.png)
+![Image](assets/NPA-ABCs.png)
 
 
 ---
@@ -260,7 +272,7 @@ A design and development process that identifies problems and solutions based on
 
 - A design and development process that identifies problems and solutions based on (human) audience needs and insights.
 
-![Image](/assets/venn.png)
+![Image](assets/venn.png)
 
 
 ---
