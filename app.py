@@ -362,6 +362,12 @@ COURSE_TITLE: "Journalism Innovation"
                 
                 # Add image if present
                 if image_path and is_image_template:
+                    # Convert absolute web paths to relative filesystem paths
+                    # /assets/cover.png -> ../assets/cover.png (relative from output/ directory)
+                    if image_path.startswith('/assets/'):
+                        image_path = '../assets/' + image_path[8:]  # Remove '/assets/' and add '../assets/'
+                    elif image_path.startswith('assets/'):
+                        image_path = '../' + image_path  # Add '../' prefix
                     content += f'\n![Image]({image_path})\n'
         
         # Write temporary markdown file
