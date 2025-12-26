@@ -134,7 +134,8 @@ section.gold-bullets-image-split ul,
 section.gold-bullets-image-split ol {
 	padding-left: 50px !important;
 	padding-right: 50px !important;
-	width: 50% !important;
+	width: calc(50% - 60px) !important;
+	max-width: calc(50% - 60px) !important;
 	margin-top: -60px !important;
 	margin-bottom: 0 !important;
 }
