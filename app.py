@@ -273,29 +273,30 @@ def reorder_slides():
 @app.route('/api/decks/<int:deck_id>/export', methods=['GET'])
 def export_deck(deck_id):
     """Export a specific deck to PDF or PPTX format"""
-    format_type = request.args.get('format', 'pdf').lower()
-    
-    if format_type not in ['pdf', 'pptx']:
-        return jsonify({'error': 'Invalid format. Use pdf or pptx'}), 400
-    
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    
-    # Get deck info
-    c.execute('SELECT week, date, presentation_id FROM decks WHERE id = ?', (deck_id,))
-    deck_row = c.fetchone()
-    if not deck_row:
-        conn.close()
-        return jsonify({'error': 'Deck not found'}), 404
-    
-    week, date, presentation_id = deck_row
-    
-    # Get presentation front matter
-    c.execute('SELECT front_matter FROM presentations WHERE id = ?', (presentation_id,))
-    pres_row = c.fetchone()
-    
-    # Build markdown content for this deck only
-    content = '''---
+    try:
+        format_type = request.args.get('format', 'pdf').lower()
+        
+        if format_type not in ['pdf', 'pptx']:
+            return jsonify({'error': 'Invalid format. Use pdf or pptx'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        
+        # Get deck info
+        c.execute('SELECT week, date, presentation_id FROM decks WHERE id = ?', (deck_id,))
+        deck_row = c.fetchone()
+        if not deck_row:
+            conn.close()
+            return jsonify({'error': 'Deck not found'}), 404
+        
+        week, date, presentation_id = deck_row
+        
+        # Get presentation front matter
+        c.execute('SELECT front_matter FROM presentations WHERE id = ?', (presentation_id,))
+        pres_row = c.fetchone()
+        
+        # Build markdown content for this deck only
+        content = '''---
 marp: true
 theme: classroom
 paginate: true
@@ -303,75 +304,74 @@ COURSE_TITLE: "Journalism Innovation"
 ---
 
 '''
-    
-    # Get all slides for this deck
-    c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                        image_path, is_title
-                 FROM slides 
-                 WHERE deck_id = ?
-                 ORDER BY order_index''', (deck_id,))
-    
-    slides = c.fetchall()
-    conn.close()
-    
-    for slide in slides:
-        slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title = slide
         
-        # Add slide separator
-        content += '\n---\n\n'
+        # Get all slides for this deck
+        c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
+                            image_path, is_title
+                     FROM slides 
+                     WHERE deck_id = ?
+                     ORDER BY order_index''', (deck_id,))
         
-        # Add class
-        if slide_class:
-            content += f'<!-- _class: {slide_class} -->\n'
+        slides = c.fetchall()
+        conn.close()
         
-        # Determine template type
-        is_quote_template = slide_class and 'quote' in slide_class
-        is_image_template = slide_class and 'image' in slide_class
-        is_text_only = slide_class and 'lines' in slide_class
-        
-        if is_quote_template:
-            # Quote templates: only export quote and citation
-            if quote:
-                content += f'> {quote}\n'
-                if quote_citation:
-                    content += f'>\n> {quote_citation}\n'
-        else:
-            # Non-quote templates: export headline, paragraph, bullets
-            if headline:
-                content += f'# {headline}\n'
+        for slide in slides:
+            slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title = slide
             
-            if is_text_only:
-                # Text-only template: show paragraph, skip bullets
-                if paragraph:
-                    content += f'\n{process_paragraph_linebreaks(paragraph)}\n'
+            # Add slide separator
+            content += '\n---\n\n'
+            
+            # Add class
+            if slide_class:
+                content += f'<!-- _class: {slide_class} -->\n'
+            
+            # Determine template type
+            is_quote_template = slide_class and 'quote' in slide_class
+            is_image_template = slide_class and 'image' in slide_class
+            is_text_only = slide_class and 'lines' in slide_class
+            
+            if is_quote_template:
+                # Quote templates: only export quote and citation
+                if quote:
+                    content += f'> {quote}\n'
+                    if quote_citation:
+                        content += f'>\n> {quote_citation}\n'
             else:
-                # Bullet templates: show paragraph (if any) then bullets
-                if paragraph:
-                    content += f'\n{process_paragraph_linebreaks(paragraph)}\n'
+                # Non-quote templates: export headline, paragraph, bullets
+                if headline:
+                    content += f'# {headline}\n'
                 
-                if bullets:
-                    try:
-                        bullet_list = json.loads(bullets)
-                        content += '\n'
-                        for bullet in bullet_list:
-                            if bullet.strip():
-                                content += f'- {bullet}\n'
-                    except json.JSONDecodeError:
-                        pass
-            
-            # Add image if present
-            if image_path and is_image_template:
-                content += f'\n![Image]({image_path})\n'
-    
-    # Write temporary markdown file
-    temp_md = f'output/deck_{deck_id}_temp.md'
-    output_file = f'output/Week_{week}_{date}.{format_type}'
-    
-    with open(temp_md, 'w') as f:
-        f.write(content)
-    
-    # Run Marp CLI to convert
-    try:
+                if is_text_only:
+                    # Text-only template: show paragraph, skip bullets
+                    if paragraph:
+                        content += f'\n{process_paragraph_linebreaks(paragraph)}\n'
+                else:
+                    # Bullet templates: show paragraph (if any) then bullets
+                    if paragraph:
+                        content += f'\n{process_paragraph_linebreaks(paragraph)}\n'
+                    
+                    if bullets:
+                        try:
+                            bullet_list = json.loads(bullets)
+                            content += '\n'
+                            for bullet in bullet_list:
+                                if bullet.strip():
+                                    content += f'- {bullet}\n'
+                        except json.JSONDecodeError:
+                            pass
+                
+                # Add image if present
+                if image_path and is_image_template:
+                    content += f'\n![Image]({image_path})\n'
+        
+        # Write temporary markdown file
+        temp_md = f'output/deck_{deck_id}_temp.md'
+        output_file = f'output/Week_{week}_{date}.{format_type}'
+        
+        with open(temp_md, 'w') as f:
+            f.write(content)
+        
+        # Run Marp CLI to convert
         if format_type == 'pdf':
             cmd = f'marp {temp_md} -o {output_file} --allow-local-files --pdf --theme presentation-styles.css'
         else:  # pptx
@@ -380,9 +380,11 @@ COURSE_TITLE: "Journalism Innovation"
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         
         # Clean up temp file
-        os.remove(temp_md)
+        if os.path.exists(temp_md):
+            os.remove(temp_md)
         
         if result.returncode != 0:
+            print(f"Marp error: {result.stderr}")
             return jsonify({'error': f'Marp conversion failed: {result.stderr}'}), 500
         
         # Send file
@@ -393,6 +395,9 @@ COURSE_TITLE: "Journalism Innovation"
             mimetype='application/pdf' if format_type == 'pdf' else 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
         )
     except Exception as e:
+        print(f"Export error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 def process_paragraph_linebreaks(text):
