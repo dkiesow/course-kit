@@ -269,7 +269,12 @@ section.template-bullets-2col li {
 /* Bullets with image on right template */
 section.template-bullets-image {
 	background-color: #ffffff !important;
-	padding: 0 !important;
+	padding: 175px 60px 60px 60px !important;
+}
+
+section.template-bullets-image * {
+	margin-top: 0 !important;
+	padding-top: 0 !important;
 }
 
 section.template-bullets-image li {
