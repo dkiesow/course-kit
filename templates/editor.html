@@ -511,6 +511,15 @@
             const is2Col = slide.slideClass && slide.slideClass.includes('2col');
             const isTitle = slide.isTitle;
             
+            // Determine base template and gold status
+            let baseTemplate = slide.slideClass || 'template-bullets';
+            let isGold = false;
+            
+            if (baseTemplate.startsWith('gold-')) {
+                isGold = true;
+                baseTemplate = baseTemplate.replace('gold-', 'template-');
+            }
+            
             const editorView = document.getElementById('editor-view');
             editorView.innerHTML = `
                 <div class="editor-header">
@@ -538,17 +547,20 @@
                     <div class="form-group">
                         <label>Template</label>
                         <select id="slide-class" onchange="updateEditorFields()">
-                            <option value="template-bullets" ${slide.slideClass === 'template-bullets' ? 'selected' : ''}>Bullets (White)</option>
-                            <option value="template-bullets-2col" ${slide.slideClass === 'template-bullets-2col' ? 'selected' : ''}>Bullets Two-Column (White)</option>
-                            <option value="template-bullets-image" ${slide.slideClass === 'template-bullets-image' ? 'selected' : ''}>Bullets with Image (White)</option>
-                            <option value="template-lines" ${slide.slideClass === 'template-lines' ? 'selected' : ''}>Lines / Text Only (White)</option>
-                            <option value="gold-bullets" ${slide.slideClass === 'gold-bullets' ? 'selected' : ''}>Bullets (Gold)</option>
-                            <option value="gold-bullets-2col" ${slide.slideClass === 'gold-bullets-2col' ? 'selected' : ''}>Bullets Two-Column (Gold)</option>
-                            <option value="gold-bullets-image" ${slide.slideClass === 'gold-bullets-image' ? 'selected' : ''}>Bullets with Image (Gold)</option>
-                            <option value="gold-bullets-image-split" ${slide.slideClass === 'gold-bullets-image-split' ? 'selected' : ''}>Bullets with Image Split</option>
-                            <option value="template-quote-headline" ${slide.slideClass === 'template-quote-headline' ? 'selected' : ''}>Quote (White)</option>
-                            <option value="gold-quote-headline" ${slide.slideClass === 'gold-quote-headline' ? 'selected' : ''}>Quote (Gold)</option>
+                            <option value="template-bullets">Bullets</option>
+                            <option value="template-bullets-2col">Bullets Two-Column</option>
+                            <option value="template-bullets-image">Bullets with Image</option>
+                            <option value="template-lines">Lines / Text Only</option>
+                            <option value="gold-bullets-image-split">Bullets with Image Split</option>
+                            <option value="template-quote-headline">Quote</option>
                         </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="gold-background" onchange="handleGoldBackgroundChange()" style="width: auto; cursor: pointer;">
+                            <span>Gold Background</span>
+                        </label>
                     </div>
                     
                     <div class="form-group">
@@ -612,7 +624,19 @@
                     document.getElementById('deck-week')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('deck-date')?.addEventListener('input', triggerAutoSave);
                 } else {
+                    // Set the template and gold checkbox values
+                    const classSelect = document.getElementById('slide-class');
+                    const goldCheckbox = document.getElementById('gold-background');
+                    
+                    if (classSelect) {
+                        classSelect.value = baseTemplate;
+                    }
+                    if (goldCheckbox) {
+                        goldCheckbox.checked = isGold;
+                    }
+                    
                     document.getElementById('slide-class')?.addEventListener('change', triggerAutoSave);
+                    document.getElementById('gold-background')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('slide-headline')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-paragraph')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-quote')?.addEventListener('input', triggerAutoSave);
@@ -637,6 +661,27 @@
             document.getElementById('quote-group').style.display = isQuote ? 'block' : 'none';
             document.getElementById('citation-group').style.display = isQuote ? 'block' : 'none';
             document.getElementById('image-group').style.display = hasImage ? 'block' : 'none';
+        }
+        
+        function handleGoldBackgroundChange() {
+            triggerAutoSave();
+        }
+        
+        function getActualSlideClass() {
+            const baseClass = document.getElementById('slide-class').value;
+            const isGold = document.getElementById('gold-background')?.checked;
+            
+            // Don't add gold prefix to split template (it already has specific styling)
+            if (baseClass === 'gold-bullets-image-split' || !isGold) {
+                return baseClass;
+            }
+            
+            // Convert template- prefix to gold- prefix
+            if (baseClass.startsWith('template-')) {
+                return baseClass.replace('template-', 'gold-');
+            }
+            
+            return baseClass;
         }
         
         function handleImageSelection(event) {
@@ -749,7 +794,7 @@
                     .filter(bullet => bullet !== '');
                 
                 const data = {
-                    slideClass: document.getElementById('slide-class').value,
+                    slideClass: getActualSlideClass(),
                     headline: document.getElementById('slide-headline').value,
                     paragraph: document.getElementById('slide-paragraph')?.value || '',
                     bullets: bullets,

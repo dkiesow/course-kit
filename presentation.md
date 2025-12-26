@@ -324,19 +324,37 @@ Then came AI.
 <!-- _class: template-bullets -->
 # New Slide
 
+- Make me smarter
+- Give me something to talk about
+- Look out for my interests
+- Entertain me
+- Guide me
+- Save me money
+
 
 ---
 
 <!-- _class: template-bullets -->
-# New Slide
+# That means
+
+- Understanding community information needs
+- Assessing and improving organizational skills and capacity
+- Strategic design of coverage, products and services for sustainability
+- Managing the people and processes involved
+- Reducing risk in decisions
+- Connecting mission - vision - strategy - tactics
 
 
 ---
 
-<!-- _class: closing -->
+<!-- _class: template-bullets -->
 # Thank You
 
-Questions?
+Damon Kiesow
+Knight Chair in 
+Journalism Innovation
+216 Reynolds Journalism Institute
+dkiesow@missouri.edu
 
 
 ---
