@@ -204,7 +204,7 @@ I believe that advertising, news and editorial columns should alike serve the be
 
 ---
 
-<!-- _class: template-quote-headline -->
+<!-- _class: gold-quote-headline -->
 > Digital has knocked down the wall between editorial and business - we need journalists to renegotiate and rebuild those norms.
 
 
@@ -293,7 +293,9 @@ Needs two column
 <!-- _class: template-bullets -->
 # Social and Audience Strategy
 
-Students will learn to apply critical thinking at the intersection of journalism, technology and audience needs. You will learn and practice audience engagement tactics on social media platforms and research and develop organizational strategy by understanding how different digital channels: web, app, email, or podcast can be used to support community information needs and support a sustainable business. You will learn methods of news innovation to align organizational and community efforts in support of quality journalism.<br>Relevant job titles: Digital media producer, news product manager, editor, director of audience growth, audience development project manager, social media editor, audience engagement producer, product operations manager, director of product, strategist, UX researcher, analytics & insights editor, head of strategy
+Students will learn to apply critical thinking at the intersection of journalism, technology and audience needs. You will learn and practice audience engagement tactics on social media platforms and research and develop organizational strategy by understanding how different digital channels: web, app, email, or podcast can be used to support community information needs and support a sustainable business. You will learn methods of news innovation to align organizational and community efforts in support of quality journalism.
+
+Relevant job titles: Digital media producer, news product manager, editor, director of audience growth, audience development project manager, social media editor, audience engagement producer, product operations manager, director of product, strategist, UX researcher, analytics & insights editor, head of strategy
 
 
 ---
