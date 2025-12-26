@@ -19,3 +19,7 @@
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 123-942-360
+/Users/kiesowd/.pyenv/versions/3.10.6/lib/python3.10/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+/Users/kiesowd/.pyenv/versions/3.10.6/lib/python3.10/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

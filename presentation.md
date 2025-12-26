@@ -66,9 +66,7 @@ _class: title
 <!-- _class: template-bullets -->
 # Final Paper
 
-Proposal DUE Sept 26 - Draft Due Nov 5 - Final Due Dec 10.
-<br>
-Your final project for the semester is a 10-page report on 'the future of news.’ Topics could include:
+Proposal DUE Sept 26 - Draft Due Nov 5 - Final Due Dec 10.<br>Your final project for the semester is a 10-page report on 'the future of news.’ Topics could include:
 
 - A case study of a news organization that is succeeding
 - Interviews with news professionals with a specific focus
@@ -96,24 +94,7 @@ Your final project for the semester is a 10-page report on 'the future of news.�
 <!-- _class: template-lines -->
 # Unit Quizzes
 
-**Quiz ONE** Week 4 
-<br>
-*Chapters 1-4*
-<br>
-
-**Quiz TWO** Week 8 
-<br>
-*Chapters 5-6*
-<br>
-
-**Quiz THREE** Week 12 
-<br>
-*Chapters 7-8*
-<br>
-
-**Quiz FOUR** Week 15 
-<br>
-*Chapters 9-11*
+**Quiz ONE** Week 4<br>*Chapters 1-4*<br>**Quiz TWO** Week 8<br>*Chapters 5-6*<br>**Quiz THREE** Week 12<br>*Chapters 7-8*<br>**Quiz FOUR** Week 15<br>*Chapters 9-11*
 
 
 ---
@@ -208,13 +189,7 @@ Weighted Categories
 <!-- _class: template-lines -->
 # Journalist’s Creed
 
-I believe that the public journal is a public trust; that all connected with it are, to the full measure of their responsibility, trustees for the public; that acceptance of a lesser service than the public service is betrayal of this trust 
-<br>
-
-I believe that clear thinking and clear statement, accuracy and fairness are fundamental to good journalism.  
-<br>
-
-I believe that advertising, news and editorial columns should alike serve the best interests of readers; that a single standard of helpful truth and cleanness should prevail for all; that the supreme test of good journalism is the measure of its public service.
+I believe that the public journal is a public trust; that all connected with it are, to the full measure of their responsibility, trustees for the public; that acceptance of a lesser service than the public service is betrayal of this trust<br>I believe that clear thinking and clear statement, accuracy and fairness are fundamental to good journalism.<br>I believe that advertising, news and editorial columns should alike serve the best interests of readers; that a single standard of helpful truth and cleanness should prevail for all; that the supreme test of good journalism is the measure of its public service.
 
 
 ---
@@ -250,8 +225,6 @@ Methods and tactics to make decisions in support of sustaining the mission and p
 # External resources
 
 News Product Alliance
-<br>
-
 
 - Sign-up: https://newsproduct.org/slack
 - Sign-up: https://newsproduct.org/slack
@@ -310,9 +283,7 @@ Needs two column
 <!-- _class: template-bullets -->
 # Social and Audience Strategy
 
-Students will learn to apply critical thinking at the intersection of journalism, technology and audience needs. You will learn and practice audience engagement tactics on social media platforms and research and develop organizational strategy by understanding how different digital channels: web, app, email, or podcast can be used to support community information needs and support a sustainable business. You will learn methods of news innovation to align organizational and community efforts in support of quality journalism.
-<br>
-Relevant job titles: Digital media producer, news product manager, editor, director of audience growth, audience development project manager, social media editor, audience engagement producer, product operations manager, director of product, strategist, UX researcher, analytics & insights editor, head of strategy
+Students will learn to apply critical thinking at the intersection of journalism, technology and audience needs. You will learn and practice audience engagement tactics on social media platforms and research and develop organizational strategy by understanding how different digital channels: web, app, email, or podcast can be used to support community information needs and support a sustainable business. You will learn methods of news innovation to align organizational and community efforts in support of quality journalism.<br>Relevant job titles: Digital media producer, news product manager, editor, director of audience growth, audience development project manager, social media editor, audience engagement producer, product operations manager, director of product, strategist, UX researcher, analytics & insights editor, head of strategy
 
 
 ---
@@ -330,17 +301,7 @@ Relevant job titles: Digital media producer, news product manager, editor, dir
 
 <!-- _class: template-lines -->
 
-Information used to be expensive to distribute.
-<br>
-Then came the Web.
-<br>
-Information used to be expensive to access.
-<br>
-Then came mobile.
-<br>
-Information used to be expensive to produce.
-<br>
-Then came AI.
+Information used to be expensive to distribute.<br>Then came the Web.<br>Information used to be expensive to access.<br>Then came mobile.<br>Information used to be expensive to produce.<br>Then came AI.
 
 
 ---
@@ -374,15 +335,7 @@ Then came AI.
 <!-- _class: template-bullets -->
 # Thank You
 
-Damon Kiesow
-<br>
-Knight Chair in 
-<br>
-Journalism Innovation
-<br>
-216 Reynolds Journalism Institute
-<br>
-dkiesow@missouri.edu
+Damon Kiesow<br>Knight Chair in<br>Journalism Innovation<br>216 Reynolds Journalism Institute<br>dkiesow@missouri.edu
 
 
 ---
