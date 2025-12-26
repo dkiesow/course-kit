@@ -656,9 +656,10 @@
             const slideClass = document.getElementById('slide-class').value;
             const isQuote = slideClass.includes('quote');
             const hasImage = slideClass.includes('image');
+            const isTextOnly = slideClass.includes('lines');
             
             document.getElementById('paragraph-group').style.display = isQuote ? 'none' : 'block';
-            document.getElementById('bullets-group').style.display = isQuote ? 'none' : 'block';
+            document.getElementById('bullets-group').style.display = (isQuote || isTextOnly) ? 'none' : 'block';
             document.getElementById('quote-group').style.display = isQuote ? 'block' : 'none';
             document.getElementById('citation-group').style.display = isQuote ? 'block' : 'none';
             document.getElementById('image-group').style.display = hasImage ? 'block' : 'none';
