@@ -274,16 +274,22 @@ def process_paragraph_linebreaks(text):
     """Convert single linebreaks to <br> tags for proper Markdown rendering"""
     if not text:
         return text
-    # Replace single newlines with <br>\n to preserve line breaks in Markdown
+    # Replace single newlines with <br> to preserve line breaks
     # But preserve blank lines (double newlines) as paragraph breaks
     lines = text.split('\n')
     result = []
     for i, line in enumerate(lines):
-        result.append(line)
-        # Add <br> after non-empty lines (except the last line)
-        # Skip adding <br> if the current line is empty or if it's the last line
-        if i < len(lines) - 1 and line.strip():
-            result.append('<br>')
+        if i < len(lines) - 1:
+            # Not the last line
+            if line.strip():
+                # Non-empty line: add <br> at the end
+                result.append(line + '<br>')
+            else:
+                # Empty line: preserve as-is for paragraph breaks
+                result.append(line)
+        else:
+            # Last line: add as-is
+            result.append(line)
     return '\n'.join(result)
 
 

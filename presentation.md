@@ -101,19 +101,16 @@ Your final project for the semester is a 10-page report on 'the future of news.�
 *Chapters 1-4*
 <br>
 
-<br>
 **Quiz TWO** Week 8 
 <br>
 *Chapters 5-6*
 <br>
 
-<br>
 **Quiz THREE** Week 12 
 <br>
 *Chapters 7-8*
 <br>
 
-<br>
 **Quiz FOUR** Week 15 
 <br>
 *Chapters 9-11*
@@ -214,11 +211,9 @@ Weighted Categories
 I believe that the public journal is a public trust; that all connected with it are, to the full measure of their responsibility, trustees for the public; that acceptance of a lesser service than the public service is betrayal of this trust 
 <br>
 
-<br>
 I believe that clear thinking and clear statement, accuracy and fairness are fundamental to good journalism.  
 <br>
 
-<br>
 I believe that advertising, news and editorial columns should alike serve the best interests of readers; that a single standard of helpful truth and cleanness should prevail for all; that the supreme test of good journalism is the measure of its public service.
 
 
