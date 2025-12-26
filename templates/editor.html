@@ -621,6 +621,7 @@
                     // Bullet inputs
                     document.querySelectorAll('#bullet-list input').forEach(input => {
                         input.addEventListener('input', triggerAutoSave);
+                        input.addEventListener('paste', handleBulletPaste);
                     });
                 }
             }, 100);
@@ -669,6 +670,46 @@
                 <button onclick="removeBullet(this)">✕</button>
             `;
             bulletList.appendChild(bulletItem);
+            
+            // Add paste handler to new input
+            const input = bulletItem.querySelector('input');
+            input.addEventListener('paste', handleBulletPaste);
+        }
+        
+        function handleBulletPaste(event) {
+            const pastedText = event.clipboardData.getData('text');
+            const lines = pastedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            
+            // If multiple lines were pasted, create separate bullets
+            if (lines.length > 1) {
+                event.preventDefault();
+                
+                const currentInput = event.target;
+                const bulletList = document.getElementById('bullet-list');
+                const currentBulletItem = currentInput.closest('.bullet-item');
+                
+                // Set first line in current input
+                currentInput.value = lines[0];
+                
+                // Create new bullets for remaining lines
+                lines.slice(1).forEach(line => {
+                    const bulletItem = document.createElement('div');
+                    bulletItem.className = 'bullet-item';
+                    bulletItem.innerHTML = `
+                        <input type="text" value="${line.replace(/"/g, '&quot;')}">
+                        <button onclick="removeBullet(this)">✕</button>
+                    `;
+                    bulletList.appendChild(bulletItem);
+                    
+                    // Add paste handler to new input
+                    const newInput = bulletItem.querySelector('input');
+                    newInput.addEventListener('paste', handleBulletPaste);
+                    newInput.addEventListener('input', triggerAutoSave);
+                });
+                
+                // Trigger auto-save
+                triggerAutoSave();
+            }
         }
         
         function removeBullet(button) {

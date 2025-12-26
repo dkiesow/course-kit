@@ -6,7 +6,7 @@ COURSE_TITLE: "Journalism Innovation"
 ---
 
 <!--
-WEEK: "Week One"
+WEEK: "Week One Wednesday"
 DATE: "1/21/26"
 _class: title
 -->
@@ -321,6 +321,18 @@ Then came AI.
 
 ---
 
+<!-- _class: template-bullets -->
+# New Slide
+
+
+---
+
+<!-- _class: template-bullets -->
+# New Slide
+
+
+---
+
 <!-- _class: closing -->
 # Thank You
 
@@ -330,22 +342,10 @@ Questions?
 ---
 
 <!--
-WEEK: "Two"
+WEEK: "Week Two - Monday"
 DATE: "1/26/2026"
 _class: title
 -->
 # {{COURSE_TITLE}}
 ## {{WEEK}}
 {{DATE}}
-
-
----
-
-<!-- _class: template-bullets -->
-# New Slide
-
-
----
-
-<!-- _class: template-bullets -->
-# New Slide
