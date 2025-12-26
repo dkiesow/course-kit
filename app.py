@@ -212,13 +212,41 @@ def slide(slide_id):
     
     if request.method == 'PUT':
         data = request.json
-        c.execute('''UPDATE slides SET slide_class = ?, headline = ?, paragraph = ?, 
-                    bullets = ?, quote = ?, quote_citation = ?, image_path = ?
-                    WHERE id = ?''',
-                 (data.get('slideClass'), data.get('headline'), data.get('paragraph'),
-                  json.dumps(data.get('bullets', [])), data.get('quote'),
-                  data.get('quoteCitation'), data.get('imagePath'), slide_id))
-        conn.commit()
+        
+        # Build dynamic UPDATE query based on provided fields
+        update_fields = []
+        update_values = []
+        
+        if 'slideClass' in data:
+            update_fields.append('slide_class = ?')
+            update_values.append(data.get('slideClass'))
+        if 'headline' in data:
+            update_fields.append('headline = ?')
+            update_values.append(data.get('headline'))
+        if 'paragraph' in data:
+            update_fields.append('paragraph = ?')
+            update_values.append(data.get('paragraph'))
+        if 'bullets' in data:
+            update_fields.append('bullets = ?')
+            update_values.append(json.dumps(data.get('bullets', [])))
+        if 'quote' in data:
+            update_fields.append('quote = ?')
+            update_values.append(data.get('quote'))
+        if 'quoteCitation' in data:
+            update_fields.append('quote_citation = ?')
+            update_values.append(data.get('quoteCitation'))
+        if 'imagePath' in data:
+            update_fields.append('image_path = ?')
+            update_values.append(data.get('imagePath'))
+        if 'deck_id' in data:
+            update_fields.append('deck_id = ?')
+            update_values.append(data.get('deck_id'))
+        
+        if update_fields:
+            update_values.append(slide_id)
+            c.execute(f"UPDATE slides SET {', '.join(update_fields)} WHERE id = ?", tuple(update_values))
+            conn.commit()
+        
         conn.close()
         return jsonify({'success': True})
     

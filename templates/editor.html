@@ -477,7 +477,8 @@
                 return;
             }
             
-            const deckId = currentPresentation.decks[currentPresentation.decks.length - 1].id;
+            // Use current deck if available, otherwise use last deck
+            const deckId = currentDeck ? currentDeck.id : currentPresentation.decks[currentPresentation.decks.length - 1].id;
             
             await fetch('/api/slides', {
                 method: 'POST',
@@ -808,30 +809,64 @@
             
             if (draggedSlide.slideId === targetSlideId) return;
             
-            // Get deck and reorder slides
-            const deck = currentPresentation.decks.find(d => d.id === draggedSlide.deckId);
-            const draggedSlideObj = deck.slides.find(s => s.id === draggedSlide.slideId);
-            const targetSlideObj = deck.slides.find(s => s.id === targetSlideId);
+            const sourceDeck = currentPresentation.decks.find(d => d.id === draggedSlide.deckId);
+            const targetDeck = currentPresentation.decks.find(d => d.id === targetDeckId);
+            const draggedSlideObj = sourceDeck.slides.find(s => s.id === draggedSlide.slideId);
             
-            const oldIndex = deck.slides.indexOf(draggedSlideObj);
-            const newIndex = deck.slides.indexOf(targetSlideObj);
-            
-            // Remove from old position
-            deck.slides.splice(oldIndex, 1);
-            // Insert at new position
-            deck.slides.splice(newIndex, 0, draggedSlideObj);
-            
-            // Update order_index for all slides
-            const updates = deck.slides.map((slide, index) => ({
-                id: slide.id,
-                orderIndex: index
-            }));
-            
-            await fetch('/api/slides/reorder', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ slides: updates })
-            });
+            if (draggedSlide.deckId === targetDeckId) {
+                // Same deck: reorder within deck
+                const targetSlideObj = targetDeck.slides.find(s => s.id === targetSlideId);
+                const oldIndex = targetDeck.slides.indexOf(draggedSlideObj);
+                const newIndex = targetDeck.slides.indexOf(targetSlideObj);
+                
+                targetDeck.slides.splice(oldIndex, 1);
+                targetDeck.slides.splice(newIndex, 0, draggedSlideObj);
+                
+                const updates = targetDeck.slides.map((slide, index) => ({
+                    id: slide.id,
+                    orderIndex: index
+                }));
+                
+                await fetch('/api/slides/reorder', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ slides: updates })
+                });
+            } else {
+                // Different deck: move slide and update both decks
+                const targetSlideObj = targetDeck.slides.find(s => s.id === targetSlideId);
+                const targetIndex = targetDeck.slides.indexOf(targetSlideObj);
+                
+                // Remove from source deck
+                const sourceIndex = sourceDeck.slides.indexOf(draggedSlideObj);
+                sourceDeck.slides.splice(sourceIndex, 1);
+                
+                // Add to target deck
+                targetDeck.slides.splice(targetIndex, 0, draggedSlideObj);
+                
+                // Update slide's deck_id
+                await fetch(`/api/slides/${draggedSlide.slideId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ deck_id: targetDeckId })
+                });
+                
+                // Update order for both decks
+                const sourceUpdates = sourceDeck.slides.map((slide, index) => ({
+                    id: slide.id,
+                    orderIndex: index
+                }));
+                const targetUpdates = targetDeck.slides.map((slide, index) => ({
+                    id: slide.id,
+                    orderIndex: index
+                }));
+                
+                await fetch('/api/slides/reorder', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ slides: [...sourceUpdates, ...targetUpdates] })
+                });
+            }
             
             await loadPresentation();
         }
