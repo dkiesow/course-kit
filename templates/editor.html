@@ -88,6 +88,52 @@
             font-weight: 500;
             font-size: 14px;
             color: #333;
+            flex: 1;
+        }
+        
+        .deck-export-btn {
+            padding: 4px 12px;
+            background: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 8px;
+            position: relative;
+        }
+        
+        .deck-export-btn:hover {
+            background: #0b5ed7;
+        }
+        
+        .deck-export-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            margin-top: 4px;
+            z-index: 1000;
+            min-width: 100px;
+        }
+        
+        .deck-export-dropdown.show {
+            display: block;
+        }
+        
+        .deck-export-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #333;
+        }
+        
+        .deck-export-option:hover {
+            background: #f8f9fa;
         }
         
         .deck-toggle {
@@ -396,9 +442,18 @@
             
             list.innerHTML = currentPresentation.decks.map((deck, deckIndex) => `
                 <div class="deck expanded" id="deck-${deck.id}">
-                    <div class="deck-header" onclick="toggleDeck(${deck.id})">
-                        <div class="deck-title">Week ${deck.week} - ${deck.date}</div>
-                        <div class="deck-toggle"></div>
+                    <div class="deck-header">
+                        <div class="deck-title" onclick="toggleDeck(${deck.id})">Week ${deck.week} - ${deck.date}</div>
+                        <div style="position: relative;">
+                            <button class="deck-export-btn" onclick="event.stopPropagation(); toggleExportDropdown(${deck.id})">
+                                Export
+                            </button>
+                            <div id="export-dropdown-${deck.id}" class="deck-export-dropdown">
+                                <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'pdf')">PDF</div>
+                                <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'pptx')">PowerPoint</div>
+                            </div>
+                        </div>
+                        <div class="deck-toggle" onclick="toggleDeck(${deck.id})"></div>
                     </div>
                     <div class="deck-slides">
                         ${deck.slides.map((slide, slideIndex) => `
@@ -426,6 +481,56 @@
         function toggleDeck(deckId) {
             const deck = document.getElementById(`deck-${deckId}`);
             deck.classList.toggle('expanded');
+        }
+        
+        function toggleExportDropdown(deckId) {
+            const dropdown = document.getElementById(`export-dropdown-${deckId}`);
+            // Close all other dropdowns
+            document.querySelectorAll('.deck-export-dropdown').forEach(d => {
+                if (d.id !== `export-dropdown-${deckId}`) {
+                    d.classList.remove('show');
+                }
+            });
+            dropdown.classList.toggle('show');
+        }
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.deck-export-btn')) {
+                document.querySelectorAll('.deck-export-dropdown').forEach(d => {
+                    d.classList.remove('show');
+                });
+            }
+        });
+        
+        async function exportDeck(deckId, format) {
+            // Close dropdown
+            document.getElementById(`export-dropdown-${deckId}`).classList.remove('show');
+            
+            try {
+                const response = await fetch(`/api/decks/${deckId}/export?format=${format}`);
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+                
+                // Download the file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Get deck info for filename
+                const deck = currentPresentation.decks.find(d => d.id === deckId);
+                const filename = `Week_${deck.week}_${deck.date}.${format}`;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export deck. Please try again.');
+            }
         }
         
         // New presentation
