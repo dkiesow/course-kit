@@ -270,6 +270,21 @@ def reorder_slides():
     conn.close()
     return jsonify({'success': True})
 
+def process_paragraph_linebreaks(text):
+    """Convert single linebreaks to <br> tags for proper Markdown rendering"""
+    if not text:
+        return text
+    # Replace single newlines with <br>\n to preserve line breaks in Markdown
+    # But don't replace double newlines (paragraph breaks)
+    lines = text.split('\n')
+    result = []
+    for i, line in enumerate(lines):
+        result.append(line)
+        # Add <br> after each line except the last
+        if i < len(lines) - 1:
+            result.append('<br>')
+    return '\n'.join(result)
+
 @app.route('/api/presentations/<int:presentation_id>/auto-export', methods=['POST'])
 def auto_export_presentation(presentation_id):
     conn = sqlite3.connect(DB_PATH)
@@ -349,11 +364,11 @@ COURSE_TITLE: "Journalism Innovation"
                     if is_text_only:
                         # Text-only template: show paragraph, skip bullets
                         if paragraph:
-                            slide_md += f'\n{paragraph}\n'
+                            slide_md += f'\n{process_paragraph_linebreaks(paragraph)}\n'
                     else:
                         # Bullet templates: show paragraph (if any) then bullets
                         if paragraph:
-                            slide_md += f'\n{paragraph}\n'
+                            slide_md += f'\n{process_paragraph_linebreaks(paragraph)}\n'
                         
                         if bullets:
                             slide_md += '\n'
@@ -510,11 +525,11 @@ COURSE_TITLE: "Journalism Innovation"
                     if is_text_only:
                         # Text-only template: show paragraph, skip bullets
                         if paragraph:
-                            slide_md += f'\n{paragraph}\n'
+                            slide_md += f'\n{process_paragraph_linebreaks(paragraph)}\n'
                     else:
                         # Bullet templates: show paragraph (if any) then bullets
                         if paragraph:
-                            slide_md += f'\n{paragraph}\n'
+                            slide_md += f'\n{process_paragraph_linebreaks(paragraph)}\n'
                         
                         if bullets:
                             slide_md += '\n'

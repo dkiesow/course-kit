@@ -107,11 +107,6 @@ Your final project for the semester is a 10-page report on 'the future of news.â
 **Quiz FOUR** Week 15 
 *Chapters 9-11*
 
-- Quiz ONE Week 4 Chapters 1-4
-- Quiz TWO Week 8 Chapters 5-6
-- Quiz THREE Week 12 Chapters 7-8
-- Quiz FOUR Week 15 Chapters 9-11
-
 
 ---
 
