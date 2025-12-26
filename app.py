@@ -274,11 +274,18 @@ def process_paragraph_linebreaks(text):
     """Convert single linebreaks to <br> tags for proper Markdown rendering"""
     if not text:
         return text
-    # Split into lines and filter out empty ones
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    # Join all non-empty lines with JUST <br> (no newlines)
-    # This prevents Marp from adding extra <br> tags
-    return '<br>'.join(lines)
+    # Split into paragraphs (separated by blank lines)
+    paragraphs = text.split('\n\n')
+    processed_paragraphs = []
+    
+    for para in paragraphs:
+        # Within each paragraph, join lines with <br>
+        lines = [line.strip() for line in para.split('\n') if line.strip()]
+        if lines:
+            processed_paragraphs.append('<br>'.join(lines))
+    
+    # Join paragraphs with double newlines to create spacing
+    return '\n\n'.join(processed_paragraphs)
 
 
 @app.route('/api/presentations/<int:presentation_id>/auto-export', methods=['POST'])

@@ -94,7 +94,13 @@ Proposal DUE Sept 26 - Draft Due Nov 5 - Final Due Dec 10.<br>Your final project
 <!-- _class: template-lines -->
 # Unit Quizzes
 
-**Quiz ONE** Week 4<br>*Chapters 1-4*<br>**Quiz TWO** Week 8<br>*Chapters 5-6*<br>**Quiz THREE** Week 12<br>*Chapters 7-8*<br>**Quiz FOUR** Week 15<br>*Chapters 9-11*
+**Quiz ONE** Week 4<br>*Chapters 1-4*
+
+**Quiz TWO** Week 8<br>*Chapters 5-6*
+
+**Quiz THREE** Week 12<br>*Chapters 7-8*
+
+**Quiz FOUR** Week 15<br>*Chapters 9-11*
 
 
 ---
@@ -189,7 +195,11 @@ Weighted Categories
 <!-- _class: template-lines -->
 # Journalist’s Creed
 
-I believe that the public journal is a public trust; that all connected with it are, to the full measure of their responsibility, trustees for the public; that acceptance of a lesser service than the public service is betrayal of this trust<br>I believe that clear thinking and clear statement, accuracy and fairness are fundamental to good journalism.<br>I believe that advertising, news and editorial columns should alike serve the best interests of readers; that a single standard of helpful truth and cleanness should prevail for all; that the supreme test of good journalism is the measure of its public service.
+I believe that the public journal is a public trust; that all connected with it are, to the full measure of their responsibility, trustees for the public; that acceptance of a lesser service than the public service is betrayal of this trust
+
+I believe that clear thinking and clear statement, accuracy and fairness are fundamental to good journalism.
+
+I believe that advertising, news and editorial columns should alike serve the best interests of readers; that a single standard of helpful truth and cleanness should prevail for all; that the supreme test of good journalism is the measure of its public service.
 
 
 ---
