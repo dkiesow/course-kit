@@ -374,7 +374,7 @@ section.agenda img {
 
 /* Title slide background */
 section.title {
-	background-image: url('assets/title-background.jpg') !important;
+	background-image: url('/assets/title-background.jpg') !important;
 	background-size: cover !important;
 	background-position: center !important;
 	color: #ffffff !important;
@@ -504,7 +504,7 @@ section.gold-quote-headline blockquote {
 }
 
 section.title {
-	background-image: url('assets/title-background.jpg') !important;
+	background-image: url('/assets/title-background.jpg') !important;
 	background-size: cover !important;
 	background-position: center !important;
 	color: #ffffff !important;
@@ -521,7 +521,7 @@ section.title::after {
 	transform: translateY(50%) !important;
 	width: 65.5% !important;
 	height: 24.7% !important;
-	background-image: url('assets/MU_colorbar.png') !important;
+	background-image: url('/assets/MU_colorbar.png') !important;
 	background-size: contain !important;
 	background-repeat: no-repeat !important;
 	background-position: right center !important;
@@ -627,7 +627,7 @@ section.title::after {
 	transform: translateY(50%) !important;
 	width: 65.5% !important;
 	height: 24.7% !important;
-	background-image: url('assets/MU_colorbar.png') !important;
+	background-image: url('/assets/MU_colorbar.png') !important;
 	background-size: contain !important;
 	background-repeat: no-repeat !important;
 	background-position: right center !important;
