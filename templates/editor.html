@@ -864,7 +864,7 @@
             
             if (result.success) {
                 // Open presentation.html with cache-busting timestamp
-                window.open('/presentation.html?t=' + Date.now(), '_blank');
+                window.open('/output/presentation.html?t=' + Date.now(), '_blank');
             } else {
                 alert('Preview failed: ' + (result.error || 'Unknown error'));
             }
