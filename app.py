@@ -275,15 +275,17 @@ def process_paragraph_linebreaks(text):
     if not text:
         return text
     # Replace single newlines with <br>\n to preserve line breaks in Markdown
-    # But don't replace double newlines (paragraph breaks)
+    # But preserve blank lines (double newlines) as paragraph breaks
     lines = text.split('\n')
     result = []
     for i, line in enumerate(lines):
         result.append(line)
-        # Add <br> after each line except the last
-        if i < len(lines) - 1:
+        # Add <br> after non-empty lines (except the last line)
+        # Skip adding <br> if the current line is empty or if it's the last line
+        if i < len(lines) - 1 and line.strip():
             result.append('<br>')
     return '\n'.join(result)
+
 
 @app.route('/api/presentations/<int:presentation_id>/auto-export', methods=['POST'])
 def auto_export_presentation(presentation_id):
