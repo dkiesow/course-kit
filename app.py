@@ -107,11 +107,12 @@ def presentation(presentation_id):
         for deck_row in c.fetchall():
             deck_id = deck_row[0]
             c.execute('''SELECT id, slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                        image_path, order_index, is_title FROM slides 
+                        image_path, order_index, is_title, hide_headline FROM slides 
                         WHERE deck_id = ? ORDER BY order_index''', (deck_id,))
             slides = [{'id': s[0], 'slideClass': s[1], 'headline': s[2], 'paragraph': s[3], 
                       'bullets': json.loads(s[4]) if s[4] else [], 'quote': s[5], 
-                      'quoteCitation': s[6], 'imagePath': s[7], 'orderIndex': s[8], 'isTitle': bool(s[9])}
+                      'quoteCitation': s[6], 'imagePath': s[7], 'orderIndex': s[8], 'isTitle': bool(s[9]),
+                      'hideHeadline': bool(s[10])}
                      for s in c.fetchall()]
             decks.append({'id': deck_id, 'week': deck_row[1], 'date': deck_row[2], 
                          'orderIndex': deck_row[3], 'slides': slides})
@@ -238,6 +239,9 @@ def slide(slide_id):
         if 'imagePath' in data:
             update_fields.append('image_path = ?')
             update_values.append(data.get('imagePath'))
+        if 'hideHeadline' in data:
+            update_fields.append('hide_headline = ?')
+            update_values.append(1 if data.get('hideHeadline') else 0)
         if 'deck_id' in data:
             update_fields.append('deck_id = ?')
             update_values.append(data.get('deck_id'))
@@ -307,7 +311,7 @@ COURSE_TITLE: "Journalism Innovation"
         
         # Get all slides for this deck
         c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                            image_path, is_title
+                            image_path, is_title, hide_headline
                      FROM slides 
                      WHERE deck_id = ?
                      ORDER BY order_index''', (deck_id,))
@@ -316,19 +320,23 @@ COURSE_TITLE: "Journalism Innovation"
         conn.close()
         
         for slide in slides:
-            slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title = slide
+            slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline = slide
             
             # Add slide separator
             content += '\n---\n\n'
             
-            # Add class
+            # Add class (append hide-headline class if needed)
             if slide_class:
-                content += f'<!-- _class: {slide_class} -->\n'
+                if hide_headline:
+                    content += f'<!-- _class: {slide_class} hide-headline -->\n'
+                else:
+                    content += f'<!-- _class: {slide_class} -->\n'
             
             # Determine template type
             is_quote_template = slide_class and 'quote' in slide_class
-            is_image_template = slide_class and 'image' in slide_class
+            is_image_template = slide_class and ('image' in slide_class or slide_class == 'photo-centered')
             is_text_only = slide_class and 'lines' in slide_class
+            is_photo_centered = slide_class == 'photo-centered'
             
             if is_quote_template:
                 # Quote templates: only export quote and citation
@@ -336,6 +344,20 @@ COURSE_TITLE: "Journalism Innovation"
                     content += f'> {quote}\n'
                     if quote_citation:
                         content += f'>\n> {quote_citation}\n'
+            elif is_photo_centered:
+                # Photo centered: only headline and image
+                if headline:
+                    content += f'# {headline}\n'
+                
+                # Add image if present
+                if image_path:
+                    # Convert absolute web paths to relative filesystem paths
+                    # /assets/cover.png -> ../assets/cover.png (relative from output/ directory)
+                    if image_path.startswith('/assets/'):
+                        image_path = '../assets/' + image_path[8:]  # Remove '/assets/' and add '../assets/'
+                    elif image_path.startswith('assets/'):
+                        image_path = '../' + image_path  # Add '../' prefix
+                    content += f'\n![Image]({image_path})\n'
             else:
                 # Non-quote templates: export headline, paragraph, bullets
                 if headline:
@@ -473,7 +495,7 @@ COURSE_TITLE: "Journalism Innovation"
         date = deck[2]
         
         c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                    image_path, is_title FROM slides WHERE deck_id = ? ORDER BY order_index''', 
+                    image_path, is_title, hide_headline FROM slides WHERE deck_id = ? ORDER BY order_index''', 
                  (deck_id,))
         
         for slide in c.fetchall():
@@ -485,6 +507,7 @@ COURSE_TITLE: "Journalism Innovation"
             quote_citation = slide[5]
             image_path = slide[6]
             is_title = slide[7]
+            hide_headline = slide[8]
             
             slide_md = ''
             
@@ -495,12 +518,17 @@ COURSE_TITLE: "Journalism Innovation"
                 slide_md += f'## {{{{WEEK}}}}\n'
                 slide_md += f'{{{{DATE}}}}\n'
             else:
-                slide_md = f'<!-- _class: {slide_class} -->\n'
+                # Add class (append hide-headline class if needed)
+                if hide_headline:
+                    slide_md = f'<!-- _class: {slide_class} hide-headline -->\n'
+                else:
+                    slide_md = f'<!-- _class: {slide_class} -->\n'
                 
                 # Determine what fields to export based on template type
                 is_quote_template = slide_class and 'quote' in slide_class
-                is_image_template = slide_class and 'image' in slide_class
+                is_image_template = slide_class and ('image' in slide_class or slide_class == 'photo-centered')
                 is_text_only = slide_class and 'lines' in slide_class
+                is_photo_centered = slide_class == 'photo-centered'
                 
                 if is_quote_template:
                     # Quote templates: only export quote and citation
@@ -634,7 +662,7 @@ COURSE_TITLE: "Journalism Innovation"
         date = deck[2]
         
         c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                    image_path, is_title FROM slides WHERE deck_id = ? ORDER BY order_index''', 
+                    image_path, is_title, hide_headline FROM slides WHERE deck_id = ? ORDER BY order_index''', 
                  (deck_id,))
         
         for slide in c.fetchall():
@@ -646,6 +674,7 @@ COURSE_TITLE: "Journalism Innovation"
             quote_citation = slide[5]
             image_path = slide[6]
             is_title = slide[7]
+            hide_headline = slide[8]
             
             slide_md = ''
             
@@ -656,12 +685,17 @@ COURSE_TITLE: "Journalism Innovation"
                 slide_md += f'## {{{{WEEK}}}}\n'
                 slide_md += f'{{{{DATE}}}}\n'
             else:
-                slide_md = f'<!-- _class: {slide_class} -->\n'
+                # Add class (append hide-headline class if needed)
+                if hide_headline:
+                    slide_md = f'<!-- _class: {slide_class} hide-headline -->\n'
+                else:
+                    slide_md = f'<!-- _class: {slide_class} -->\n'
                 
                 # Determine what fields to export based on template type
                 is_quote_template = slide_class and 'quote' in slide_class
-                is_image_template = slide_class and 'image' in slide_class
+                is_image_template = slide_class and ('image' in slide_class or slide_class == 'photo-centered')
                 is_text_only = slide_class and 'lines' in slide_class
+                is_photo_centered = slide_class == 'photo-centered'
                 
                 if is_quote_template:
                     # Quote templates: only export quote and citation

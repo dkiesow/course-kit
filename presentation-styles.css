@@ -640,3 +640,40 @@ section.title::after {
 	z-index: 0 !important;
 	visibility: visible !important;
 }
+
+/* Photo centered template - just image in the center */
+section.photo-centered {
+	padding: 175px 60px 60px 60px !important;
+	background-color: #ffffff !important;
+	display: flex !important;
+	flex-direction: column !important;
+	justify-content: center !important;
+	align-items: center !important;
+}
+
+section.photo-centered img {
+	max-width: 90% !important;
+	max-height: 70% !important;
+	width: auto !important;
+	height: auto !important;
+	object-fit: contain !important;
+	margin: 0 auto !important;
+}
+
+/* When headline is hidden, adjust layout */
+section.photo-centered.hide-headline {
+	padding: 60px !important;
+}
+
+section.photo-centered.hide-headline img {
+	max-height: 85% !important;
+}
+
+/* Hide headline and HR when hide-headline class is present */
+section.hide-headline h1 {
+	display: none !important;
+}
+
+section.hide-headline h1::after {
+	display: none !important;
+}

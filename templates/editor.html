@@ -658,6 +658,7 @@
                             <option value="template-lines">Lines / Text Only</option>
                             <option value="gold-bullets-image-split">Bullets with Image Split</option>
                             <option value="template-quote-headline">Quote</option>
+                            <option value="photo-centered">Photo Centered</option>
                         </select>
                     </div>
                     
@@ -665,6 +666,13 @@
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" id="gold-background" onchange="handleGoldBackgroundChange()" style="width: auto; cursor: pointer;">
                             <span>Gold Background</span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group" id="hide-headline-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="hide-headline" style="width: auto; cursor: pointer;">
+                            <span>Hide Headline & HR</span>
                         </label>
                     </div>
                     
@@ -733,6 +741,7 @@
                     // Set the template and gold checkbox values
                     const classSelect = document.getElementById('slide-class');
                     const goldCheckbox = document.getElementById('gold-background');
+                    const hideHeadlineCheckbox = document.getElementById('hide-headline');
                     
                     if (classSelect) {
                         classSelect.value = baseTemplate;
@@ -740,9 +749,13 @@
                     if (goldCheckbox) {
                         goldCheckbox.checked = isGold;
                     }
+                    if (hideHeadlineCheckbox) {
+                        hideHeadlineCheckbox.checked = slide.hideHeadline || false;
+                    }
                     
                     document.getElementById('slide-class')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('gold-background')?.addEventListener('change', triggerAutoSave);
+                    document.getElementById('hide-headline')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('slide-headline')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-paragraph')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-quote')?.addEventListener('input', triggerAutoSave);
@@ -762,12 +775,14 @@
             const isQuote = slideClass.includes('quote');
             const hasImage = slideClass.includes('image');
             const isTextOnly = slideClass.includes('lines');
+            const isPhotoCentered = slideClass === 'photo-centered';
             
-            document.getElementById('paragraph-group').style.display = isQuote ? 'none' : 'block';
-            document.getElementById('bullets-group').style.display = (isQuote || isTextOnly) ? 'none' : 'block';
+            document.getElementById('paragraph-group').style.display = (isQuote || isPhotoCentered) ? 'none' : 'block';
+            document.getElementById('bullets-group').style.display = (isQuote || isTextOnly || isPhotoCentered) ? 'none' : 'block';
             document.getElementById('quote-group').style.display = isQuote ? 'block' : 'none';
             document.getElementById('citation-group').style.display = isQuote ? 'block' : 'none';
-            document.getElementById('image-group').style.display = hasImage ? 'block' : 'none';
+            document.getElementById('image-group').style.display = (hasImage || isPhotoCentered) ? 'block' : 'none';
+            document.getElementById('hide-headline-group').style.display = isPhotoCentered ? 'block' : 'none';
         }
         
         function handleGoldBackgroundChange() {
@@ -907,7 +922,8 @@
                     bullets: bullets,
                     quote: document.getElementById('slide-quote')?.value || '',
                     quoteCitation: document.getElementById('slide-citation')?.value || '',
-                    imagePath: document.getElementById('slide-image')?.value || ''
+                    imagePath: document.getElementById('slide-image')?.value || '',
+                    hideHeadline: document.getElementById('hide-headline')?.checked || false
                 };
                 
                 await fetch(`/api/slides/${currentSlide.id}`, {
