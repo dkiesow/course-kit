@@ -360,3 +360,63 @@ _class: title
 # {{COURSE_TITLE}}
 ## {{WEEK}}
 {{DATE}}
+
+
+---
+
+<!-- _class: photo-centered -->
+# Cause and Effect
+
+![Image](assets/cause_effect.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Simple, Complicated, Complex, Chaotic
+
+- **Clear:** Obvious solutions, possibly with a single agreed upon best-practice documented in a rulebook.
+- **Complicated:** Known solutions that may cross domains of expertise or where cause-and-effect is difficult to track. May require the analysis and integration of multiple rulebooks.
+- **Complex:** Lacks broadly applicable best practices or recipes. The system may involve novel elements and cause/effect are only indirectly related.
+- **Chaotic:** A dynamically changing complex system that may reject previously viable solutions.
+
+
+---
+
+<!-- _class: photo-centered hide-headline -->
+# Caffeine
+
+![Image](assets/caffeine.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Simple, Complicated, Complex, Chaotic
+
+- **Simple:** Baking a cake with a recipe from a cookbook.
+- **Complicated:** Cooking a full four-course meal for your family who expect to eat at 7:00 p.m.
+- **Complex:** Cooking for 100 people arriving throughout the evening who are allowed special off-menu requests that may include dishes you may lack ingredients for.
+- **Chaotic:** Cooking meals for the same 100 people who are also allowed to change their order at anytime during the process and where the gas and electricity frequently turn off at unexpected times.
+
+
+---
+
+<!-- _class: gold-bullets -->
+# Simple, Complicated, Complex, Chaotic
+
+- It is the nature of emergent problems to be complicated or complex
+- The lack of visible connection between cause and effect (no feedback loop) diminishes our ability to learn and improve the process.
+- Complex problems can become ‘complicated’ or even ‘simple’ over time as solutions and best practices are identified and tested
+- Chaotic environments may not necessarily be improved through effort/learning. Re-defining the scope of the problem may be the better solution.
+
+
+---
+
+<!-- _class: template-bullets -->
+# For example
+
+A newspaper wants to launch a subscription service / paywall
+
+- Is this problem simple, complicated, complex or chaotic?
+- How do we go about simplifying it?

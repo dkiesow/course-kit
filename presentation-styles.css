@@ -59,7 +59,9 @@ section.gold-bullets-2col h1,
 section.gold-bullets-image h1,
 section.template-quote-headline h1,
 section.gold-quote-headline h1,
-section.agenda h1 {
+section.agenda h1,
+section.photo-centered h1,
+section.gold-photo-centered h1 {
 	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
 	font-weight: 400 !important;
 	font-size: 40px !important;
@@ -84,7 +86,9 @@ section.gold-bullets-2col h1::after,
 section.gold-bullets-image h1::after,
 section.template-quote-headline h1::after,
 section.gold-quote-headline h1::after,
-section.agenda h1::after {
+section.agenda h1::after,
+section.photo-centered h1::after,
+section.gold-photo-centered h1::after {
 	content: '' !important;
 	position: absolute !important;
 	bottom: -8px !important;
@@ -643,7 +647,7 @@ section.title::after {
 
 /* Photo centered template - just image in the center */
 section.photo-centered {
-	padding: 175px 60px 60px 60px !important;
+	padding: 0 !important;
 	background-color: #ffffff !important;
 	display: flex !important;
 	flex-direction: column !important;
@@ -652,21 +656,30 @@ section.photo-centered {
 }
 
 section.photo-centered img {
-	max-width: 90% !important;
-	max-height: 70% !important;
+	position: relative !important;
+	max-width: 80% !important;
+	max-height: 60% !important;
 	width: auto !important;
 	height: auto !important;
 	object-fit: contain !important;
 	margin: 0 auto !important;
+	top: 40px !important;
 }
 
 /* When headline is hidden, adjust layout */
 section.photo-centered.hide-headline {
-	padding: 60px !important;
+	padding: 0 !important;
 }
 
 section.photo-centered.hide-headline img {
+	max-width: 90% !important;
 	max-height: 85% !important;
+	top: 0 !important;
+}
+
+/* Gold background variant */
+section.gold-photo-centered {
+	background-color: #FFC72C !important;
 }
 
 /* Hide headline and HR when hide-headline class is present */
