@@ -536,6 +536,14 @@ COURSE_TITLE: "Journalism Innovation"
                         slide_md += f'> {quote}\n'
                         if quote_citation:
                             slide_md += f'>\n> {quote_citation}\n'
+                elif is_photo_centered:
+                    # Photo centered: only headline and image
+                    if headline:
+                        slide_md += f'# {headline}\n'
+                    
+                    # Add image if present
+                    if image_path:
+                        slide_md += f'\n![Image]({image_path})\n'
                 else:
                     # Non-quote templates: export headline, paragraph, bullets
                     if headline:
@@ -565,8 +573,8 @@ COURSE_TITLE: "Journalism Innovation"
                                 for bullet in bullets:
                                     slide_md += f'- {bullet}\n'
                     
-                    # Only export image if template supports images
-                    if is_image_template and image_path:
+                    # Only export image if template supports images (but not photo-centered, handled above)
+                    if is_image_template and not is_photo_centered and image_path:
                         slide_md += f'\n![Image]({image_path})\n'
             
             slides_markdown.append(slide_md)
@@ -703,6 +711,14 @@ COURSE_TITLE: "Journalism Innovation"
                         slide_md += f'> {quote}\n'
                         if quote_citation:
                             slide_md += f'>\n> {quote_citation}\n'
+                elif is_photo_centered:
+                    # Photo centered: only headline and image
+                    if headline:
+                        slide_md += f'# {headline}\n'
+                    
+                    # Add image if present
+                    if image_path:
+                        slide_md += f'\n![Image]({image_path})\n'
                 else:
                     # Non-quote templates: export headline, paragraph, bullets
                     if headline:
@@ -732,8 +748,8 @@ COURSE_TITLE: "Journalism Innovation"
                                 for bullet in bullets:
                                     slide_md += f'- {bullet}\n'
                     
-                    # Only export image if template supports images
-                    if is_image_template and image_path:
+                    # Only export image if template supports images (but not photo-centered, handled above)
+                    if is_image_template and not is_photo_centered and image_path:
                         slide_md += f'\n![Image]({image_path})\n'
             
             slides_markdown.append(slide_md)
