@@ -136,6 +136,51 @@
             background: #f8f9fa;
         }
         
+        .editor-export-btn {
+            background: #fd7e14;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 8px;
+            position: relative;
+        }
+        
+        .editor-export-btn:hover {
+            background: #e56d0a;
+        }
+        
+        .editor-export-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            margin-top: 4px;
+            z-index: 1000;
+            min-width: 100px;
+        }
+        
+        .editor-export-dropdown.show {
+            display: block;
+        }
+        
+        .editor-export-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #333;
+        }
+        
+        .editor-export-option:hover {
+            background: #f8f9fa;
+        }
+        
         .deck-toggle {
             font-size: 12px;
             color: #666;
@@ -159,6 +204,10 @@
             border-top: 1px solid #e9ecef;
             cursor: move;
             transition: all 0.2s;
+        }
+        
+        .slide-item.title-slide {
+            background: #f5f5f5;
         }
         
         .slide-item:hover { background: #f8f9fa; }
@@ -247,6 +296,22 @@
         }
         
         .editor-actions button.delete { background: #dc3545; }
+        
+        .btn-preview {
+            width: 100%;
+            padding: 12px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .btn-preview:hover {
+            background: #218838;
+        }
         
         .editor-content {
             flex: 1;
@@ -343,13 +408,109 @@
             font-size: 13px;
             color: #856404;
         }
+        
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .modal h2 {
+            margin: 0 0 16px 0;
+            font-size: 20px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .modal-buttons .btn-cancel {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .modal-buttons .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .modal-buttons .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .module-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 12px;
+        }
+        
+        .module-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .module-item:last-child {
+            border-bottom: none;
+        }
+        
+        .module-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .module-item.selected {
+            background: #e7f3ff;
+            border-left: 3px solid #007bff;
+        }
+        
+        .module-count {
+            font-size: 12px;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
     <div class="app">
         <div class="sidebar">
             <div class="sidebar-header">
-                <h1>📊 Presentation Editor</h1>
+                <h1>📊 Presentation Editor <span onclick="showSettingsDialog()" style="cursor: pointer; font-size: 20px; margin-left: 8px;" title="Settings">⚙️</span></h1>
                 <div class="presentation-selector">
                     <select id="presentation-select" onchange="loadPresentation()">
                         <option value="">Select presentation...</option>
@@ -371,8 +532,11 @@
                 </div>
             </div>
             <div class="add-buttons">
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <button class="btn-new-slide" style="flex: 1;" onclick="addNewSlide()">+ New</button>
+                    <button class="btn-new-slide" style="flex: 1;" onclick="showInsertModuleDialog()">+ Insert</button>
+                </div>
                 <button class="btn-new-deck" onclick="addNewDeck()">+ New Deck (Title Slide)</button>
-                <button class="btn-new-slide" onclick="addNewSlide()">+ New Slide</button>
             </div>
         </div>
         
@@ -451,13 +615,14 @@
                             <div id="export-dropdown-${deck.id}" class="deck-export-dropdown">
                                 <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'pdf')">PDF</div>
                                 <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'pptx')">PowerPoint</div>
+                                <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'odp')">OpenDocument</div>
                             </div>
                         </div>
                         <div class="deck-toggle" onclick="toggleDeck(${deck.id})"></div>
                     </div>
                     <div class="deck-slides">
                         ${deck.slides.map((slide, slideIndex) => `
-                            <div class="slide-item ${currentSlide && currentSlide.id === slide.id ? 'active' : ''}"
+                            <div class="slide-item ${slide.isTitle ? 'title-slide' : ''} ${currentSlide && currentSlide.id === slide.id ? 'active' : ''}"
                                  draggable="true"
                                  data-slide-id="${slide.id}"
                                  data-deck-id="${deck.id}"
@@ -468,7 +633,9 @@
                                  ondrop="handleDrop(event)"
                                  ondragend="handleDragEnd(event)"
                                  onclick="editSlide(${deck.id}, ${slide.id})">
-                                <div class="slide-item-title">${slide.isTitle ? '📌 Title Slide' : (slide.headline || '(No headline)')}</div>
+                                <div class="slide-item-title">
+                                    ${slide.masterSlideId ? '🔗 ' : ''}${slide.isTitle ? '📌 Title Slide' : (slide.headline || '(No headline)')}
+                                </div>
                                 <div class="slide-item-class">${slide.slideClass || 'no class'}</div>
                             </div>
                         `).join('')}
@@ -496,12 +663,57 @@
         
         // Close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.deck-export-btn')) {
+            if (!e.target.closest('.deck-export-btn') && !e.target.closest('.editor-export-btn')) {
                 document.querySelectorAll('.deck-export-dropdown').forEach(d => {
                     d.classList.remove('show');
                 });
+                const editorDropdown = document.getElementById('editor-export-dropdown');
+                if (editorDropdown) {
+                    editorDropdown.classList.remove('show');
+                }
             }
         });
+        
+        function toggleEditorExport() {
+            const dropdown = document.getElementById('editor-export-dropdown');
+            dropdown.classList.toggle('show');
+        }
+        
+        async function exportCurrentDeck(format) {
+            // Close dropdown
+            const dropdown = document.getElementById('editor-export-dropdown');
+            dropdown.classList.remove('show');
+            
+            if (!currentDeck) {
+                alert('No deck selected');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/decks/${currentDeck.id}/export?format=${format}`);
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+                
+                // Download the file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                const filename = `Week_${currentDeck.week}_${currentDeck.date}.${format}`;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                alert(`Deck exported successfully as ${format.toUpperCase()}`);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export deck');
+            }
+        }
         
         async function exportDeck(deckId, format) {
             // Close dropdown
@@ -611,19 +823,14 @@
         
         // Render editor
         function renderEditor(slide) {
-            const isQuote = slide.slideClass && slide.slideClass.includes('quote');
-            const hasImage = slide.slideClass && slide.slideClass.includes('image');
-            const is2Col = slide.slideClass && slide.slideClass.includes('2col');
+            const isQuote = slide.hasQuote || false;
+            const hasImage = slide.hasImage || false;
+            const is2Col = slide.isTwoColumn || false;
             const isTitle = slide.isTitle;
             
             // Determine base template and gold status
-            let baseTemplate = slide.slideClass || 'template-bullets';
-            let isGold = false;
-            
-            if (baseTemplate.startsWith('gold-')) {
-                isGold = true;
-                baseTemplate = baseTemplate.replace('gold-', 'template-');
-            }
+            let baseTemplate = slide.templateBase || 'bullets';
+            let isGold = slide.isGold || false;
             
             const editorView = document.getElementById('editor-view');
             editorView.innerHTML = `
@@ -634,6 +841,17 @@
                     </div>
                     <div class="editor-actions">
                         <button onclick="saveSlide()">💾 Save Now</button>
+                        ${isTitle ? '<button onclick="previewDeck()" style="background: #28a745;">👁️ Preview This Deck</button>' : ''}
+                        ${isTitle ? `
+                            <div style="display: inline-block; position: relative;">
+                                <button class="editor-export-btn" onclick="event.stopPropagation(); toggleEditorExport()">📥 Export Deck ▼</button>
+                                <div id="editor-export-dropdown" class="editor-export-dropdown">
+                                    <div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck('pdf')">PDF</div>
+                                    <div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck('pptx')">PowerPoint</div>
+                                    <div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck('odp')">OpenDocument</div>
+                                </div>
+                            </div>
+                        ` : ''}
                         ${!isTitle ? '<button class="delete" onclick="deleteSlide()">🗑️ Delete</button>' : ''}
                     </div>
                 </div>
@@ -648,17 +866,28 @@
                         <label>Date</label>
                         <input type="text" id="deck-date" value="${currentDeck.date || ''}" placeholder="January 15, 2025">
                     </div>
+                    
+                    <div class="form-group">
+                        <label>Notes (not displayed on slides)</label>
+                        <textarea id="deck-notes" rows="6" placeholder="Add notes about this deck for reference...">${currentDeck.notes || ''}</textarea>
+                    </div>
                     ` : `
+                    ${slide.masterSlideId ? `
+                    <div class="warning-banner">
+                        🔗 This is a linked slide. Changes will update all instances of this module across all decks.
+                    </div>
+                    ` : ''}
                     <div class="form-group">
                         <label>Template</label>
                         <select id="slide-class" onchange="updateEditorFields()">
-                            <option value="template-bullets">Bullets</option>
-                            <option value="template-bullets-2col">Bullets Two-Column</option>
-                            <option value="template-bullets-image">Bullets with Image</option>
-                            <option value="template-lines">Lines / Text Only</option>
-                            <option value="gold-bullets-image-split">Bullets with Image Split</option>
-                            <option value="template-quote-headline">Quote</option>
+                            <option value="bullets">Bullets</option>
+                            <option value="bullets-2col">Bullets Two-Column</option>
+                            <option value="bullets-image">Bullets with Image</option>
+                            <option value="lines">Lines / Text Only</option>
+                            <option value="bullets-image-split">Bullets with Image Split</option>
+                            <option value="quote">Quote</option>
                             <option value="photo-centered">Photo Centered</option>
+                            <option value="closing">Closing</option>
                         </select>
                     </div>
                     
@@ -676,14 +905,47 @@
                         </label>
                     </div>
                     
+                    <div class="form-group" id="fullscreen-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="fullscreen" style="width: auto; cursor: pointer;">
+                            <span>Fullscreen Image</span>
+                        </label>
+                    </div>
+                    
                     <div class="form-group">
-                        <label>Headline</label>
-                        <input type="text" id="slide-headline" value="${slide.headline || ''}">
+                        <label>Module (optional)</label>
+                        <input type="text" id="slide-module" value="${slide.module || ''}" placeholder="e.g., introduction, case-study">
+                    </div>
+                    
+                    <div class="form-group" style="background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e0e0e0;">
+                        <label style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleAssignmentsPanel()">
+                            <span>📚 Assignments</span>
+                            <span id="assignments-toggle" style="font-size: 12px; color: #666;">▼ Show</span>
+                        </label>
+                        <div id="assignments-panel" style="display: none; margin-top: 8px;">
+                            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                                Click an assignment to insert <code>{assignment:Name}</code> at cursor position
+                            </div>
+                            <div id="assignments-list-editor" style="max-height: 150px; overflow-y: auto;">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                            <button onclick="showAddAssignmentForm()" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;">
+                                + Add New Assignment
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>${baseTemplate === 'closing' ? 'Contact Info' : 'Headline'}</label>
+                        ${baseTemplate === 'closing' 
+                            ? `<textarea id="slide-headline" rows="5" style="font-family: monospace;">${slide.headline || ''}</textarea>`
+                            : `<input type="text" id="slide-headline" value="${slide.headline || ''}">`
+                        }
                     </div>
                     
                     <div class="form-group" id="paragraph-group" style="display: ${isQuote ? 'none' : 'block'}">
-                        <label>Non-bullet Text (optional)</label>
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Supports Markdown: **bold**, *italic*, line breaks, etc.</div>
+                        <label>${baseTemplate === 'closing' ? 'Bottom Text' : 'Non-bullet Text (optional)'}</label>
+                        ${baseTemplate !== 'closing' ? '<div style="font-size: 12px; color: #666; margin-bottom: 5px;">Supports Markdown: **bold**, *italic*, line breaks, etc.</div>' : ''}
                         <textarea id="slide-paragraph" rows="3">${slide.paragraph || ''}</textarea>
                     </div>
                     
@@ -737,11 +999,13 @@
                 if (isTitle) {
                     document.getElementById('deck-week')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('deck-date')?.addEventListener('input', triggerAutoSave);
+                    document.getElementById('deck-notes')?.addEventListener('input', triggerAutoSave);
                 } else {
                     // Set the template and gold checkbox values
                     const classSelect = document.getElementById('slide-class');
                     const goldCheckbox = document.getElementById('gold-background');
                     const hideHeadlineCheckbox = document.getElementById('hide-headline');
+                    const fullscreenCheckbox = document.getElementById('fullscreen');
                     
                     if (classSelect) {
                         classSelect.value = baseTemplate;
@@ -752,10 +1016,15 @@
                     if (hideHeadlineCheckbox) {
                         hideHeadlineCheckbox.checked = slide.hideHeadline || false;
                     }
+                    if (fullscreenCheckbox) {
+                        fullscreenCheckbox.checked = slide.fullscreen || false;
+                    }
                     
                     document.getElementById('slide-class')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('gold-background')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('hide-headline')?.addEventListener('change', triggerAutoSave);
+                    document.getElementById('fullscreen')?.addEventListener('change', triggerAutoSave);
+                    document.getElementById('slide-module')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-headline')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-paragraph')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-quote')?.addEventListener('input', triggerAutoSave);
@@ -771,17 +1040,29 @@
         }
         
         function updateEditorFields() {
-            const slideClass = document.getElementById('slide-class').value;
-            const isQuote = slideClass.includes('quote');
-            const hasImage = slideClass.includes('image');
-            const isTextOnly = slideClass.includes('lines');
-            const isPhotoCentered = slideClass === 'photo-centered';
+            const templateBase = document.getElementById('slide-class').value;
+            const isQuote = templateBase === 'quote';
+            const hasImage = templateBase.includes('image') || templateBase === 'photo-centered';
+            const isTextOnly = templateBase === 'lines';
+            const isPhotoCentered = templateBase === 'photo-centered';
+            const isClosing = templateBase === 'closing';
+            const isTwoColumn = templateBase.includes('2col');
+            
+            // If switching to/from closing, need to reload editor to change input type
+            if (currentSlide && (
+                (isClosing && currentSlide.templateBase !== 'closing') ||
+                (!isClosing && currentSlide.templateBase === 'closing')
+            )) {
+                currentSlide.templateBase = templateBase;
+                renderEditor(currentSlide);
+                return;
+            }
             
             document.getElementById('paragraph-group').style.display = (isQuote || isPhotoCentered) ? 'none' : 'block';
-            document.getElementById('bullets-group').style.display = (isQuote || isTextOnly || isPhotoCentered) ? 'none' : 'block';
+            document.getElementById('bullets-group').style.display = (isQuote || isTextOnly || isPhotoCentered || isClosing) ? 'none' : 'block';
             document.getElementById('quote-group').style.display = isQuote ? 'block' : 'none';
             document.getElementById('citation-group').style.display = isQuote ? 'block' : 'none';
-            document.getElementById('image-group').style.display = (hasImage || isPhotoCentered) ? 'block' : 'none';
+            document.getElementById('image-group').style.display = hasImage ? 'block' : 'none';
             document.getElementById('hide-headline-group').style.display = isPhotoCentered ? 'block' : 'none';
         }
         
@@ -790,20 +1071,20 @@
         }
         
         function getActualSlideClass() {
-            const baseClass = document.getElementById('slide-class').value;
+            const templateBase = document.getElementById('slide-class').value;
             const isGold = document.getElementById('gold-background')?.checked;
             
-            // Don't add gold prefix to split template (it already has specific styling)
-            if (baseClass === 'gold-bullets-image-split' || !isGold) {
-                return baseClass;
+            // Build the actual CSS class name
+            if (isGold && templateBase !== 'bullets-image-split') {
+                return 'gold-' + templateBase;
             }
             
-            // Convert template- prefix to gold- prefix
-            if (baseClass.startsWith('template-')) {
-                return baseClass.replace('template-', 'gold-');
+            // Add template- prefix for non-gold templates (except photo-centered, closing, and split)
+            if (!templateBase.includes('photo-centered') && templateBase !== 'bullets-image-split' && templateBase !== 'closing') {
+                return 'template-' + templateBase;
             }
             
-            return baseClass;
+            return templateBase;
         }
         
         function handleImageSelection(event) {
@@ -822,8 +1103,8 @@
             img.style.display = 'block';
             preview.style.display = 'block';
             
-            // Store relative path (assume images go in assets/)
-            const imagePath = 'assets/' + file.name;
+            // Store absolute path (images in /assets/)
+            const imagePath = '/assets/' + file.name;
             document.getElementById('slide-image').value = imagePath;
             pathDisplay.textContent = imagePath;
         }
@@ -900,7 +1181,8 @@
             if (currentSlide.isTitle) {
                 const deckData = {
                     week: document.getElementById('deck-week').value,
-                    date: document.getElementById('deck-date').value
+                    date: document.getElementById('deck-date').value,
+                    notes: document.getElementById('deck-notes').value
                 };
                 
                 await fetch(`/api/decks/${currentDeck.id}`, {
@@ -915,15 +1197,27 @@
                     .map(input => input.value.trim())
                     .filter(bullet => bullet !== '');
                 
+                const templateBase = document.getElementById('slide-class').value;
+                const isGold = document.getElementById('gold-background')?.checked || false;
+                
                 const data = {
                     slideClass: getActualSlideClass(),
+                    templateBase: templateBase,
+                    isGold: isGold,
+                    hasImage: templateBase.includes('image') || templateBase === 'photo-centered',
+                    hasBullets: !templateBase.includes('lines') && templateBase !== 'photo-centered' && templateBase !== 'quote' && templateBase !== 'closing',
+                    hasQuote: templateBase === 'quote',
+                    isTwoColumn: templateBase.includes('2col'),
+                    isPhotoCentered: templateBase === 'photo-centered',
+                    module: document.getElementById('slide-module')?.value || null,
                     headline: document.getElementById('slide-headline').value,
                     paragraph: document.getElementById('slide-paragraph')?.value || '',
                     bullets: bullets,
                     quote: document.getElementById('slide-quote')?.value || '',
                     quoteCitation: document.getElementById('slide-citation')?.value || '',
                     imagePath: document.getElementById('slide-image')?.value || '',
-                    hideHeadline: document.getElementById('hide-headline')?.checked || false
+                    hideHeadline: document.getElementById('hide-headline')?.checked || false,
+                    fullscreen: document.getElementById('fullscreen')?.checked || false
                 };
                 
                 await fetch(`/api/slides/${currentSlide.id}`, {
@@ -1114,6 +1408,27 @@
             }
         }
         
+        async function previewDeck() {
+            if (!currentDeck) {
+                alert('No deck selected');
+                return;
+            }
+            
+            // Trigger build for this deck only
+            const response = await fetch(`/api/decks/${currentDeck.id}/preview`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Open presentation.html with cache-busting timestamp
+                window.open('/output/presentation.html?t=' + Date.now(), '_blank');
+            } else {
+                alert('Preview failed: ' + (result.error || 'Unknown error'));
+            }
+        }
+        
         // Import presentation
         async function importPresentation(event) {
             const file = event.target.files[0];
@@ -1172,8 +1487,296 @@
             alert('Presentation deleted!');
         }
         
+        // Module insertion
+        async function showInsertModuleDialog() {
+            if (!currentSlide || !currentDeck) {
+                alert('Please select a slide to insert after');
+                return;
+            }
+            
+            // Fetch available modules
+            const response = await fetch('/api/modules');
+            const modules = await response.json();
+            
+            if (modules.length === 0) {
+                alert('No modules found. Create slides with a module label first.');
+                return;
+            }
+            
+            // Show modal
+            const modal = document.getElementById('insert-module-modal');
+            const moduleList = document.getElementById('module-list');
+            
+            moduleList.innerHTML = modules.map(m => `
+                <div class="module-item" data-module="${m.name}" onclick="selectModule('${m.name}')">
+                    <span>${m.name}</span>
+                    <span class="module-count">${m.slideCount} slides</span>
+                </div>
+            `).join('');
+            
+            modal.classList.add('active');
+        }
+        
+        let selectedModule = null;
+        
+        function selectModule(moduleName) {
+            selectedModule = moduleName;
+            document.querySelectorAll('.module-item').forEach(item => {
+                item.classList.remove('selected');
+                if (item.dataset.module === moduleName) {
+                    item.classList.add('selected');
+                }
+            });
+            document.getElementById('insert-module-btn').disabled = false;
+        }
+        
+        function closeModuleDialog() {
+            document.getElementById('insert-module-modal').classList.remove('active');
+            selectedModule = null;
+            document.getElementById('insert-module-btn').disabled = true;
+        }
+        
+        // Assignments management
+        let assignments = [];
+        let currentFocusedInput = null;
+        
+        // Track which input has focus
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                currentFocusedInput = e.target;
+            }
+        });
+        
+        async function loadAssignments() {
+            const response = await fetch('/api/assignments');
+            assignments = await response.json();
+            updateAssignmentsList();
+        }
+        
+        function updateAssignmentsList() {
+            const listEl = document.getElementById('assignments-list-editor');
+            if (!listEl) return;
+            
+            if (assignments.length === 0) {
+                listEl.innerHTML = '<div style="font-size: 12px; color: #999; padding: 8px;">No assignments yet</div>';
+                return;
+            }
+            
+            listEl.innerHTML = assignments.map(a => `
+                <div class="assignment-item" data-assignment-name="${a.name}" data-assignment-id="${a.id}"
+                     style="padding: 8px; margin-bottom: 4px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                     onmouseover="this.style.background='#e3f2fd'" 
+                     onmouseout="this.style.background='white'">
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; font-weight: 500;">${a.name}</div>
+                        <div style="font-size: 11px; color: #666;">Due: ${a.dueDate}</div>
+                    </div>
+                    <button class="delete-assignment-btn" data-assignment-id="${a.id}" style="padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">×</button>
+                </div>
+            `).join('');
+            
+            // Add click listeners
+            document.querySelectorAll('.assignment-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('delete-assignment-btn')) {
+                        insertAssignmentVariable(item.dataset.assignmentName);
+                    }
+                });
+            });
+            
+            // Add delete listeners
+            document.querySelectorAll('.delete-assignment-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteAssignment(parseInt(btn.dataset.assignmentId));
+                });
+            });
+        }
+        
+        function toggleAssignmentsPanel() {
+            const panel = document.getElementById('assignments-panel');
+            const toggle = document.getElementById('assignments-toggle');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                toggle.textContent = '▲ Hide';
+                loadAssignments();
+            } else {
+                panel.style.display = 'none';
+                toggle.textContent = '▼ Show';
+            }
+        }
+        
+        function insertAssignmentVariable(assignmentName) {
+            if (!currentFocusedInput) {
+                alert('Click in a text field first, then click the assignment');
+                return;
+            }
+            
+            const variable = `{assignment:${assignmentName}}`;
+            const input = currentFocusedInput;
+            
+            if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                const text = input.value;
+                input.value = text.substring(0, start) + variable + text.substring(end);
+                input.selectionStart = input.selectionEnd = start + variable.length;
+                input.focus();
+                triggerAutoSave();
+            }
+        }
+        
+        function showAddAssignmentForm() {
+            const name = prompt('Assignment name:');
+            if (!name) return;
+            
+            const dueDate = prompt('Due date (YYYY-MM-DD):');
+            if (!dueDate) return;
+            
+            addAssignment(name, dueDate);
+        }
+        
+        async function addAssignment(name, dueDate, description = '', points = 0) {
+            const response = await fetch('/api/assignments', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, dueDate, description, points})
+            });
+            
+            if (response.ok) {
+                await loadAssignments();
+            } else {
+                alert('Error adding assignment');
+            }
+        }
+        
+        async function deleteAssignment(id) {
+            if (!confirm('Delete this assignment?')) return;
+            
+            const response = await fetch(`/api/assignments/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                await loadAssignments();
+            } else {
+                alert('Error deleting assignment');
+            }
+        }
+        
+        async function insertModule() {
+            if (!selectedModule || !currentSlide || !currentDeck) return;
+            
+            const response = await fetch(`/api/decks/${currentDeck.id}/insert-module`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    moduleName: selectedModule,
+                    insertAfter: currentSlide.id
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                closeModuleDialog();
+                await loadPresentation();
+                alert(`Inserted ${result.insertedCount} slides from module "${selectedModule}"`);
+            } else {
+                alert('Error inserting module: ' + (result.error || 'Unknown error'));
+            }
+        }
+        
         // Initialize
         loadPresentationsList();
+        
+        // Settings dialog functions
+        function showSettingsDialog() {
+            document.getElementById('settings-modal').classList.add('active');
+        }
+        
+        function closeSettingsDialog() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+        
+        async function importAssignmentsCSV() {
+            const fileInput = document.getElementById('csv-file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const csvContent = e.target.result;
+                
+                const response = await fetch('/api/assignments/import-csv', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({csvContent})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    let message = `Imported ${result.imported} assignment(s)`;
+                    if (result.errors && result.errors.length > 0) {
+                        message += '\n\nErrors:\n' + result.errors.join('\n');
+                    }
+                    alert(message);
+                    fileInput.value = ''; // Clear file input
+                    await loadAssignments(); // Reload assignments list
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            };
+            
+            reader.readAsText(file);
+        }
     </script>
+    
+    <!-- Insert Module Modal -->
+    <div id="insert-module-modal" class="modal-overlay" onclick="if(event.target === this) closeModuleDialog()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2>Insert Module</h2>
+            <p style="margin: 0 0 8px 0; color: #6c757d; font-size: 14px;">
+                Select a module to insert after the current slide
+            </p>
+            <div id="module-list" class="module-list"></div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeModuleDialog()">Cancel</button>
+                <button id="insert-module-btn" class="btn-primary" onclick="insertModule()" disabled>Insert</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay" onclick="if(event.target === this) closeSettingsDialog()">
+        <div class="modal" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <h2>⚙️ Settings</h2>
+            
+            <div style="margin-top: 20px;">
+                <h3 style="margin-bottom: 10px; font-size: 16px;">Import Assignments from CSV</h3>
+                <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                    Upload a CSV file with format: <code>Semester, Assignment Name, Due Date</code><br>
+                    Example: <code>SP2026, Final Paper, 5/10/2026</code>
+                </p>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; border: 1px solid #ddd;">
+                    <input type="file" id="csv-file-input" accept=".csv" style="margin-bottom: 10px;">
+                    <button onclick="importAssignmentsCSV()" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        📥 Import CSV
+                    </button>
+                </div>
+            </div>
+            
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button class="btn-cancel" onclick="closeSettingsDialog()">Close</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
