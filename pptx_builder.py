@@ -1,0 +1,387 @@
+#!/usr/bin/env python3
+"""
+Custom PPTX builder using python-pptx to work with custom layout names.
+This replaces pandoc for PPTX generation.
+"""
+
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
+import json
+import os
+
+
+def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts_map):
+    """
+    Build a PPTX file directly from slide data using custom layouts.
+    
+    Args:
+        slides_data: List of tuples containing slide data from database
+        output_path: Path where PPTX should be saved
+        template_path: Path to POTX/PPTX template file  
+        pptx_layouts_map: Dict mapping template_base to layout names
+    """
+    import zipfile
+    import shutil
+    
+    # python-pptx doesn't support POTX files, so we need to convert it
+    temp_pptx = 'temp_template.pptx'
+    
+    # Remove old temp file if it exists to ensure we use latest template
+    if os.path.exists(temp_pptx):
+        os.remove(temp_pptx)
+    
+    # Copy the template
+    shutil.copy2(template_path, temp_pptx)
+    
+    # Modify the content type in [Content_Types].xml to make it a presentation
+    try:
+        # Read the ZIP
+        with zipfile.ZipFile(temp_pptx, 'r') as zf:
+            files = {name: zf.read(name) for name in zf.namelist()}
+        
+        # Modify content types
+        if '[Content_Types].xml' in files:
+            content_xml = files['[Content_Types].xml'].decode('utf-8')
+            content_xml = content_xml.replace(
+                'presentationml.template.main',
+                'presentationml.presentation.main'
+            )
+            files['[Content_Types].xml'] = content_xml.encode('utf-8')
+        
+        # Write back
+        with zipfile.ZipFile(temp_pptx, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for name, data in files.items():
+                zf.writestr(name, data)
+    except Exception as e:
+        print(f"Warning: Could not patch template: {e}")
+    
+    # Now load with python-pptx
+    prs = Presentation(temp_pptx)
+    
+    # Build a map of layout names to layout objects
+    # Must iterate through all slide_masters since prs.slide_layouts only returns first master's layouts
+    layout_map = {}
+    for master in prs.slide_masters:
+        for layout in master.slide_layouts:
+            layout_map[layout.name] = layout
+    
+    print(f"Available layouts: {list(layout_map.keys())}")
+    
+    # Process each slide
+    for slide_data in slides_data:
+        (slide_class, headline, paragraph, bullets, quote, quote_citation, 
+         image_path, is_title, hide_headline, fullscreen, template_base) = slide_data
+        
+        # Determine layout name directly from slide_class (no guessing)
+        if is_title:
+            layout_name = "Arches_Title"
+        else:
+            # Use slide_class if it exists, otherwise template_base
+            template_key = slide_class if slide_class else template_base
+            layout_name = pptx_layouts_map.get(template_key)
+            
+            if not layout_name:
+                print(f"Warning: No layout mapping for template '{template_key}'")
+                layout_name = "White_Bullets"
+        
+        # Get the layout
+        layout = layout_map.get(layout_name)
+        if not layout:
+            print(f"Warning: Layout '{layout_name}' not found, using first available layout")
+            layout = prs.slide_layouts[0]
+        
+        # Add slide with the layout
+        slide = prs.slides.add_slide(layout)
+        
+        # Populate placeholders based on slide type
+        if is_title:
+            populate_title_slide(slide, headline, paragraph)
+        elif template_base == "closing":
+            populate_closing_slide(slide, headline, paragraph, image_path)
+        elif template_base == "photo-centered":
+            populate_photo_slide(slide, image_path)
+        elif template_base in ["quote", "gold-quote"]:
+            populate_quote_slide(slide, quote, quote_citation)
+        elif template_base in ["bullets-image", "bullets-image-split", "gold-bullets-image-split"]:
+            # Image layouts - add image
+            populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline)
+        else:
+            # Regular content - no image unless it's explicitly an image layout
+            populate_content_slide(slide, headline, paragraph, bullets, None, hide_headline)
+    
+    # Save the presentation
+    prs.save(output_path)
+    return True
+
+
+def populate_title_slide(slide, headline, paragraph):
+    """Populate title slide with course name, week, and date."""
+    # Find title and subtitle placeholders
+    title_placeholder = None
+    subtitle_placeholder = None
+    
+    for shape in slide.placeholders:
+        ph_type = shape.placeholder_format.type
+        if ph_type == 1:  # Title
+            title_placeholder = shape
+        elif ph_type in [2, 3]:  # Subtitle or Body
+            subtitle_placeholder = shape
+    
+    if title_placeholder:
+        if title_placeholder.has_text_frame:
+            text_frame = title_placeholder.text_frame
+            if text_frame.paragraphs:
+                text_frame.paragraphs[0].text = ""
+                while len(text_frame.paragraphs) > 1:
+                    elem = text_frame.paragraphs[1]._element
+                    elem.getparent().remove(elem)
+        title_placeholder.text = "Journalism Innovation"
+    
+    if subtitle_placeholder:
+        if subtitle_placeholder.has_text_frame:
+            text_frame = subtitle_placeholder.text_frame
+            if text_frame.paragraphs:
+                text_frame.paragraphs[0].text = ""
+                while len(text_frame.paragraphs) > 1:
+                    elem = text_frame.paragraphs[1]._element
+                    elem.getparent().remove(elem)
+        if headline:
+            subtitle_placeholder.text = headline
+
+
+def populate_quote_slide(slide, quote, quote_citation):
+    """Populate quote slide with quote text and citation."""
+    # Find text placeholders
+    for shape in slide.shapes:
+        if shape.has_text_frame:
+            text_frame = shape.text_frame
+            # Clear placeholder text but preserve formatting
+            if text_frame.paragraphs:
+                text_frame.paragraphs[0].text = ""
+                while len(text_frame.paragraphs) > 1:
+                    elem = text_frame.paragraphs[1]._element
+                    elem.getparent().remove(elem)
+            if quote:
+                p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
+                p.text = quote
+                if quote_citation:
+                    # Add citation as a new paragraph
+                    p = text_frame.add_paragraph()
+                    p.text = f"\n— {quote_citation}"
+                    p.font.italic = True
+                break
+
+
+def populate_closing_slide(slide, headline, paragraph, image_path):
+    """Populate closing slide with name and optional image."""
+    # Find title placeholder
+    title_placeholder = None
+    content_placeholder = None
+    
+    for shape in slide.placeholders:
+        ph_type = shape.placeholder_format.type
+        if ph_type == 1:  # Title
+            title_placeholder = shape
+        elif ph_type in [2, 7]:  # Body or Object
+            content_placeholder = shape
+    
+    if title_placeholder:
+        if title_placeholder.has_text_frame:
+            text_frame = title_placeholder.text_frame
+            if text_frame.paragraphs:
+                text_frame.paragraphs[0].text = ""
+                while len(text_frame.paragraphs) > 1:
+                    elem = text_frame.paragraphs[1]._element
+                    elem.getparent().remove(elem)
+        if headline:
+            # Split headline by newlines, use first line as main text
+            lines = headline.split('\n')
+            title_placeholder.text = lines[0]
+    
+    # Add paragraph if present
+    if content_placeholder:
+        if content_placeholder.has_text_frame:
+            content_placeholder.text_frame.clear()
+        if paragraph:
+            p = content_placeholder.text_frame.paragraphs[0] if content_placeholder.text_frame.paragraphs else content_placeholder.text_frame.add_paragraph()
+            p.text = paragraph
+    
+    # Add image if present
+    if image_path:
+        add_image_to_slide(slide, image_path)
+
+
+def populate_photo_slide(slide, image_path):
+    """Populate photo-centered slide with large image."""
+    if image_path:
+        add_image_to_slide(slide, image_path, centered=True)
+
+
+def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline):
+    """Populate standard content slide with headline, text, bullets, and optional image."""
+    # Find title placeholder
+    if not hide_headline and headline:
+        title_shape = None
+        for shape in slide.shapes:
+            if shape.is_placeholder:
+                ph_type = shape.placeholder_format.type
+                if ph_type == 1:  # Title placeholder
+                    title_shape = shape
+                    break
+        
+        if title_shape and title_shape.has_text_frame:
+            title_shape.text_frame.text = headline
+    
+    # Find content placeholder for bullets or paragraph
+    # Try multiple placeholder types (2=Body, 7=Object, 14=Content)
+    content_shape = None
+    for shape in slide.shapes:
+        if shape.is_placeholder and shape.has_text_frame:
+            ph_type = shape.placeholder_format.type
+            if ph_type in [2, 7, 14]:  # Body, Object, or Content placeholder
+                content_shape = shape
+                break
+    
+    # If no specific content placeholder found, try any text placeholder that's not the title
+    if not content_shape:
+        for shape in slide.shapes:
+            if shape.has_text_frame and not (shape.is_placeholder and shape.placeholder_format.type == 1):
+                if hasattr(shape, 'text_frame'):
+                    content_shape = shape
+                    break
+    
+    if content_shape and content_shape.has_text_frame:
+        text_frame = content_shape.text_frame
+        
+        # Clear placeholder text but preserve first paragraph's formatting
+        if text_frame.paragraphs:
+            # Clear text from first paragraph but keep the paragraph (preserves template formatting)
+            text_frame.paragraphs[0].text = ""
+            # Remove extra paragraphs
+            while len(text_frame.paragraphs) > 1:
+                elem = text_frame.paragraphs[1]._element
+                elem.getparent().remove(elem)
+        
+        # Add bullets if present
+        if bullets:
+            try:
+                bullet_list = json.loads(bullets)
+                if bullet_list:  # Only add if list is not empty
+                    print(f"    Adding {len(bullet_list)} bullets")
+                    for i, bullet in enumerate(bullet_list):
+                        if i == 0:
+                            # Use first paragraph (preserves template formatting)
+                            p = text_frame.paragraphs[0]
+                        else:
+                            p = text_frame.add_paragraph()
+                        p.text = bullet
+                        p.level = 0
+                elif paragraph:
+                    # Empty bullet list but has paragraph
+                    p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
+                    p.text = paragraph
+            except:
+                # If JSON parsing fails, treat as plain text
+                text_frame.text = bullets
+        
+        # Add paragraph if present (and no bullets)
+        elif paragraph:
+            p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
+            p.text = paragraph
+    else:
+        # Debug: print placeholder info
+        print(f"Warning: No content placeholder found for slide. Available placeholders:")
+        for shape in slide.shapes:
+            if shape.is_placeholder:
+                print(f"  Type: {shape.placeholder_format.type}, Has text frame: {shape.has_text_frame}")
+    
+    # Add image if present
+    if image_path:
+        add_image_to_slide(slide, image_path)
+
+
+def add_image_to_slide(slide, image_path, centered=False):
+    """Add an image to a slide, either in a picture placeholder or positioned."""
+    from PIL import Image
+    
+    # Clean up image path
+    if image_path.startswith('/assets/'):
+        image_path = 'assets' + image_path[7:]
+    elif image_path.startswith('assets/'):
+        pass  # Already correct
+    else:
+        image_path = 'assets/' + image_path
+    
+    # Check if file exists
+    if not os.path.exists(image_path):
+        print(f"Warning: Image not found: {image_path}")
+        return
+    
+    # Try to find a picture placeholder
+    picture_placeholder = None
+    for shape in slide.shapes:
+        if shape.is_placeholder:
+            ph_type = shape.placeholder_format.type
+            if ph_type == 18:  # Picture placeholder
+                picture_placeholder = shape
+                break
+    
+    if picture_placeholder:
+        # Get placeholder dimensions
+        ph_width = picture_placeholder.width
+        ph_height = picture_placeholder.height
+        ph_left = picture_placeholder.left
+        ph_top = picture_placeholder.top
+        
+        # Get image dimensions
+        with Image.open(image_path) as img:
+            img_width, img_height = img.size
+            img_aspect = img_width / img_height
+            ph_aspect = ph_width / ph_height
+            
+            # Calculate size to fit within placeholder while maintaining aspect ratio
+            if img_aspect > ph_aspect:
+                # Image is wider - constrain by width
+                new_width = ph_width
+                new_height = int(ph_width / img_aspect)
+            else:
+                # Image is taller - constrain by height
+                new_height = ph_height
+                new_width = int(ph_height * img_aspect)
+            
+            # Center within placeholder
+            left = ph_left + (ph_width - new_width) // 2
+            top = ph_top + (ph_height - new_height) // 2
+        
+        # Remove the placeholder and add image in its place
+        sp = picture_placeholder.element
+        sp.getparent().remove(sp)
+        slide.shapes.add_picture(image_path, left, top, width=new_width, height=new_height)
+    else:
+        # No placeholder - add at native size, centered on slide
+        with Image.open(image_path) as img:
+            img_width_px, img_height_px = img.size
+            # Convert pixels to EMUs (English Metric Units): 1 inch = 914400 EMUs, assume 96 DPI
+            dpi = 96
+            img_width_emu = int(img_width_px * 914400 / dpi)
+            img_height_emu = int(img_height_px * 914400 / dpi)
+            
+            # Get slide dimensions (standard is 10" x 7.5")
+            slide_width = 9144000  # 10 inches in EMUs
+            slide_height = 6858000  # 7.5 inches in EMUs
+            
+            # Center the image
+            left = (slide_width - img_width_emu) // 2
+            top = (slide_height - img_height_emu) // 2
+            
+            # Ensure image doesn't exceed slide bounds
+            if img_width_emu > slide_width or img_height_emu > slide_height:
+                # Scale down to fit
+                scale = min(slide_width / img_width_emu, slide_height / img_height_emu) * 0.9
+                img_width_emu = int(img_width_emu * scale)
+                img_height_emu = int(img_height_emu * scale)
+                left = (slide_width - img_width_emu) // 2
+                top = (slide_height - img_height_emu) // 2
+        
+        slide.shapes.add_picture(image_path, left, top, width=img_width_emu, height=img_height_emu)
