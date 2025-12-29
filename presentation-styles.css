@@ -361,6 +361,20 @@ section.template-quote-headline blockquote {
 	margin: 0 !important;
 }
 
+/* Quote template without headline */
+section.template-quote {
+	background-color: #ffffff !important;
+	padding: 0 !important;
+}
+
+section.template-quote blockquote {
+	position: absolute !important;
+	top: 240px !important;
+	left: 110px !important;
+	right: 110px !important;
+	margin: 0 !important;
+}
+
 /* Agenda template - headline, bullets, and photo in right corner */
 section.agenda {
 	padding: 0 !important;

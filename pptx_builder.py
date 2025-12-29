@@ -106,14 +106,70 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
             populate_quote_slide(slide, quote, quote_citation)
         elif template_base in ["bullets-image", "bullets-image-split", "gold-bullets-image-split"]:
             # Image layouts - add image
-            populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline)
+            populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class)
         else:
             # Regular content - no image unless it's explicitly an image layout
-            populate_content_slide(slide, headline, paragraph, bullets, None, hide_headline)
+            populate_content_slide(slide, headline, paragraph, bullets, None, hide_headline, slide_class)
     
     # Save the presentation
     prs.save(output_path)
     return True
+
+
+def add_formatted_text_to_frame(text_frame, text):
+    """Add text with markdown formatting to a text frame."""
+    import re
+    
+    # Clear existing paragraphs but keep the first one for formatting
+    if text_frame.paragraphs:
+        text_frame.paragraphs[0].text = ""
+        while len(text_frame.paragraphs) > 1:
+            elem = text_frame.paragraphs[1]._element
+            elem.getparent().remove(elem)
+    
+    # Split text into lines and process each line
+    lines = text.split('\n')
+    
+    for line_idx, line in enumerate(lines):
+        if line.strip():  # Only process non-empty lines
+            # Get or create paragraph
+            if line_idx == 0:
+                p = text_frame.paragraphs[0]
+            else:
+                p = text_frame.add_paragraph()
+            
+            # Parse markdown formatting in the line
+            parse_markdown_to_paragraph(p, line)
+        elif line_idx > 0:  # Add empty line breaks (but not at the beginning)
+            text_frame.add_paragraph()
+
+
+def parse_markdown_to_paragraph(paragraph, text):
+    """Parse markdown formatting and add runs to paragraph."""
+    import re
+    
+    # Pattern to match **bold** and *italic* markdown
+    pattern = r'(\*\*.*?\*\*|\*.*?\*|[^*]+|\*)'
+    parts = re.findall(pattern, text)
+    
+    for part in parts:
+        if not part:
+            continue
+            
+        if part.startswith('**') and part.endswith('**') and len(part) > 4:
+            # Bold text
+            run = paragraph.add_run()
+            run.text = part[2:-2]  # Remove ** markers
+            run.font.bold = True
+        elif part.startswith('*') and part.endswith('*') and len(part) > 2 and not part.startswith('**'):
+            # Italic text
+            run = paragraph.add_run()
+            run.text = part[1:-1]  # Remove * markers
+            run.font.italic = True
+        else:
+            # Regular text
+            run = paragraph.add_run()
+            run.text = part
 
 
 def populate_title_slide(slide, headline, paragraph, deck_info=None):
@@ -150,9 +206,13 @@ def populate_title_slide(slide, headline, paragraph, deck_info=None):
 
 def populate_quote_slide(slide, quote, quote_citation):
     """Populate quote slide with quote text and citation."""
-    # Find text placeholders
+    # Find text placeholders - skip title placeholder (idx 0), use content placeholder
     for shape in slide.shapes:
         if shape.has_text_frame:
+            # Skip title placeholders
+            if hasattr(shape, 'placeholder_format') and shape.placeholder_format.type == 1:  # 1 = title
+                continue
+            
             text_frame = shape.text_frame
             # Clear placeholder text but preserve formatting
             if text_frame.paragraphs:
@@ -162,11 +222,26 @@ def populate_quote_slide(slide, quote, quote_citation):
                     elem.getparent().remove(elem)
             if quote:
                 p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
-                p.text = quote
+                # Parse markdown formatting for quote
+                parse_markdown_to_paragraph(p, quote)
+                # Explicitly disable bullets and remove hanging indent
+                p._element.get_or_add_pPr().buNone = None
+                from lxml import etree
+                buNone = etree.SubElement(p._element.get_or_add_pPr(), '{http://schemas.openxmlformats.org/drawingml/2006/main}buNone')
+                # Remove hanging indent - set both first line and left indent to 0
+                p.level = 0
+                pPr = p._element.get_or_add_pPr()
+                pPr.set('indent', '0')
+                pPr.set('marL', '0')
+                
                 if quote_citation:
+                    # Strip leading bullet markers from citation
+                    citation_text = quote_citation.lstrip('- ').strip()
                     # Add citation as a new paragraph
                     p = text_frame.add_paragraph()
-                    p.text = f"\n— {quote_citation}"
+                    # Disable bullets BEFORE setting text
+                    buNone = etree.SubElement(p._element.get_or_add_pPr(), '{http://schemas.openxmlformats.org/drawingml/2006/main}buNone')
+                    p.text = f"\n— {citation_text}"
                     p.font.italic = True
                 break
 
@@ -203,7 +278,7 @@ def populate_closing_slide(slide, headline, paragraph, image_path):
             content_placeholder.text_frame.clear()
         if paragraph:
             p = content_placeholder.text_frame.paragraphs[0] if content_placeholder.text_frame.paragraphs else content_placeholder.text_frame.add_paragraph()
-            p.text = paragraph
+            parse_markdown_to_paragraph(p, paragraph)
     
     # Add image if present
     if image_path:
@@ -216,8 +291,11 @@ def populate_photo_slide(slide, image_path):
         add_image_to_slide(slide, image_path, centered=True)
 
 
-def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline):
+def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class=None):
     """Populate standard content slide with headline, text, bullets, and optional image."""
+    # Determine if this is a text-only slide
+    is_text_only = slide_class and 'lines' in slide_class
+    
     # Find title placeholder
     if not hide_headline and headline:
         title_shape = None
@@ -229,7 +307,10 @@ def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide
                     break
         
         if title_shape and title_shape.has_text_frame:
-            title_shape.text_frame.text = headline
+            # Clear and add formatted headline
+            tf = title_shape.text_frame
+            tf.paragraphs[0].text = ""
+            parse_markdown_to_paragraph(tf.paragraphs[0], headline)
     
     # Find content placeholder for bullets or paragraph
     # Try multiple placeholder types (2=Body, 7=Object, 14=Content)
@@ -261,8 +342,12 @@ def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide
                 elem = text_frame.paragraphs[1]._element
                 elem.getparent().remove(elem)
         
-        # Add bullets if present
-        if bullets:
+        # For text-only slides (like template-lines), prioritize paragraph content
+        if is_text_only and paragraph:
+            add_formatted_text_to_frame(text_frame, paragraph)
+            print(f"    Adding formatted paragraph text for text-only slide: {paragraph[:50]}...")
+        # For bullet slides, add bullets if present and not a text-only slide
+        elif bullets and not is_text_only:
             try:
                 bullet_list = json.loads(bullets)
                 if bullet_list:  # Only add if list is not empty
@@ -273,20 +358,27 @@ def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide
                             p = text_frame.paragraphs[0]
                         else:
                             p = text_frame.add_paragraph()
-                        p.text = bullet
+                        # Parse markdown formatting for bullet
+                        parse_markdown_to_paragraph(p, bullet)
                         p.level = 0
                 elif paragraph:
                     # Empty bullet list but has paragraph
                     p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
-                    p.text = paragraph
+                    parse_markdown_to_paragraph(p, paragraph)
+                    # Explicitly disable bullets for paragraph text
+                    from lxml import etree
+                    buNone = etree.SubElement(p._element.get_or_add_pPr(), '{http://schemas.openxmlformats.org/drawingml/2006/main}buNone')
             except:
                 # If JSON parsing fails, treat as plain text
                 text_frame.text = bullets
         
-        # Add paragraph if present (and no bullets)
+        # Add paragraph if present (and no bullets, and not already handled)
         elif paragraph:
             p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
-            p.text = paragraph
+            parse_markdown_to_paragraph(p, paragraph)
+            # Explicitly disable bullets for paragraph text
+            from lxml import etree
+            buNone = etree.SubElement(p._element.get_or_add_pPr(), '{http://schemas.openxmlformats.org/drawingml/2006/main}buNone')
     else:
         # Debug: print placeholder info
         print(f"Warning: No content placeholder found for slide. Available placeholders:")

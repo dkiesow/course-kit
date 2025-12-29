@@ -205,14 +205,14 @@ def presentation(presentation_id):
             deck_id = deck_row[0]
             c.execute('''SELECT id, slide_class, headline, paragraph, bullets, quote, quote_citation, 
                         image_path, order_index, is_title, hide_headline, has_bullets, has_image, 
-                        has_quote, is_gold, is_two_column, is_photo_centered, template_base, module, master_slide_id, fullscreen FROM slides 
+                        has_quote, is_gold, is_two_column, is_photo_centered, template_base, module, master_slide_id, fullscreen, is_draft FROM slides 
                         WHERE deck_id = ? ORDER BY order_index''', (deck_id,))
             slides = [{'id': s[0], 'slideClass': s[1], 'headline': s[2], 'paragraph': s[3], 
                       'bullets': json.loads(s[4]) if s[4] else [], 'quote': s[5], 
                       'quoteCitation': s[6], 'imagePath': s[7], 'orderIndex': s[8], 'isTitle': bool(s[9]),
                       'hideHeadline': bool(s[10]), 'hasBullets': bool(s[11]), 'hasImage': bool(s[12]),
                       'hasQuote': bool(s[13]), 'isGold': bool(s[14]), 'isTwoColumn': bool(s[15]),
-                      'isPhotoCentered': bool(s[16]), 'templateBase': s[17], 'module': s[18], 'masterSlideId': s[19], 'fullscreen': bool(s[20])}
+                      'isPhotoCentered': bool(s[16]), 'templateBase': s[17], 'module': s[18], 'masterSlideId': s[19], 'fullscreen': bool(s[20]), 'isDraft': bool(s[21])}
                      for s in c.fetchall()]
             decks.append({'id': deck_id, 'week': deck_row[1], 'date': deck_row[2], 
                          'orderIndex': deck_row[3], 'notes': deck_row[4], 'slides': slides})
@@ -315,12 +315,12 @@ def create_slide():
     max_order = c.fetchone()[0] or -1
     
     c.execute('''INSERT INTO slides (deck_id, slide_class, headline, paragraph, bullets, 
-                quote, quote_citation, image_path, order_index, is_title) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                quote, quote_citation, image_path, order_index, is_title, is_draft) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
              (data['deck_id'], data.get('class', ''), data.get('headline', ''),
               data.get('paragraph', ''), json.dumps(data.get('bullets', [])),
               data.get('quote', ''), data.get('quoteCitation', ''),
-              data.get('imagePath', ''), max_order + 1, data.get('isTitle', False)))
+              data.get('imagePath', ''), max_order + 1, data.get('isTitle', False), data.get('isDraft', False)))
     slide_id = c.lastrowid
     conn.commit()
     conn.close()
@@ -392,6 +392,9 @@ def slide(slide_id):
         if 'deck_id' in data:
             update_fields.append('deck_id = ?')
             update_values.append(data.get('deck_id'))
+        if 'isDraft' in data:
+            update_fields.append('is_draft = ?')
+            update_values.append(1 if data.get('isDraft') else 0)
         
         if update_fields:
             update_values.append(slide_id)
@@ -837,7 +840,7 @@ COURSE_TITLE: "Journalism Innovation"
                     classes.append('fullscreen')
                 content += f'<!-- _class: {" ".join(classes)} -->\n'
             
-            # Determine template type
+            # Determine template type FIRST before using these variables
             is_quote_template = slide_class and 'quote' in slide_class
             is_image_template = slide_class and ('image' in slide_class or slide_class == 'photo-centered')
             is_text_only = slide_class and 'lines' in slide_class
@@ -846,8 +849,8 @@ COURSE_TITLE: "Journalism Innovation"
             
             # For PPTX/ODP with pandoc: headline and images go BEFORE the div, text content goes INSIDE
             if format_type in ['pptx', 'odp'] and pptx_layout:
-                # Add headline at top level (becomes slide title)
-                if headline and not is_closing:
+                # Add headline at top level (becomes slide title) - but not for quotes or closing
+                if headline and not is_closing and not is_quote_template:
                     content += f'# {headline}\n\n'
                 
                 # Add image at top level (before div) for photo-centered and image templates
@@ -991,11 +994,35 @@ COURSE_TITLE: "Journalism Innovation"
                              WHERE deck_id = ?
                              ORDER BY order_index''', (deck_id,))
                 slides_data = c.fetchall()
+                
+                # Apply assignment variable substitution to slides_data
+                processed_slides = []
+                for slide in slides_data:
+                    slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base = slide
+                    
+                    # Substitute assignment variables
+                    if headline:
+                        headline = substitute_assignment_variables(headline, conn)
+                    if paragraph:
+                        paragraph = substitute_assignment_variables(paragraph, conn)
+                    if bullets:
+                        try:
+                            bullet_list = json.loads(bullets)
+                            bullets = json.dumps([substitute_assignment_variables(b, conn) for b in bullet_list])
+                        except:
+                            pass
+                    if quote:
+                        quote = substitute_assignment_variables(quote, conn)
+                    if quote_citation:
+                        quote_citation = substitute_assignment_variables(quote_citation, conn)
+                    
+                    processed_slides.append((slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base))
+                
                 conn.close()
                 
                 # Build PPTX using custom layouts
                 success = build_pptx_from_slides(
-                    slides_data=slides_data,
+                    slides_data=processed_slides,
                     output_path=output_file,
                     template_path='4734_template.potx',
                     pptx_layouts_map=pptx_layouts,
@@ -1027,11 +1054,35 @@ COURSE_TITLE: "Journalism Innovation"
                              WHERE deck_id = ?
                              ORDER BY order_index''', (deck_id,))
                 slides_data = c.fetchall()
+                
+                # Apply assignment variable substitution to slides_data
+                processed_slides = []
+                for slide in slides_data:
+                    slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base = slide
+                    
+                    # Substitute assignment variables
+                    if headline:
+                        headline = substitute_assignment_variables(headline, conn)
+                    if paragraph:
+                        paragraph = substitute_assignment_variables(paragraph, conn)
+                    if bullets:
+                        try:
+                            bullet_list = json.loads(bullets)
+                            bullets = json.dumps([substitute_assignment_variables(b, conn) for b in bullet_list])
+                        except:
+                            pass
+                    if quote:
+                        quote = substitute_assignment_variables(quote, conn)
+                    if quote_citation:
+                        quote_citation = substitute_assignment_variables(quote_citation, conn)
+                    
+                    processed_slides.append((slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base))
+                
                 conn.close()
                 
                 # Build PPTX
                 build_pptx_from_slides(
-                    slides_data=slides_data,
+                    slides_data=processed_slides,
                     output_path=temp_pptx,
                     template_path='4734_template.potx',
                     pptx_layouts_map=pptx_layouts,
