@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 import os
 import subprocess
+from pptx_builder import build_pptx_from_slides
 
 app = Flask(__name__)
 DB_PATH = 'presentations.db'
@@ -739,7 +740,9 @@ def export_deck(deck_id):
         pres_row = c.fetchone()
         
         # Build markdown content for this deck only
-        content = '''---
+        # Only add Marp frontmatter for PDF exports
+        if format_type == 'pdf':
+            content = '''---
 marp: true
 theme: classroom
 paginate: true
@@ -747,18 +750,29 @@ COURSE_TITLE: "Journalism Innovation"
 ---
 
 '''
+        else:
+            # For PPTX/ODP, start with empty content (no Marp directives)
+            content = ''
         
         # Get all slides for this deck
         c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                            image_path, is_title, hide_headline, fullscreen
+                            image_path, is_title, hide_headline, fullscreen, template_base
                      FROM slides 
                      WHERE deck_id = ?
                      ORDER BY order_index''', (deck_id,))
         
         slides = c.fetchall()
         
+        # Load PowerPoint layout mapping
+        try:
+            with open('pptx_layouts.json', 'r') as f:
+                pptx_layouts = json.load(f)
+        except:
+            pptx_layouts = {}
+        
+        is_first_slide = True
         for slide in slides:
-            slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen = slide
+            slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base = slide
             
             # Apply assignment variable substitution
             if headline:
@@ -776,22 +790,46 @@ COURSE_TITLE: "Journalism Innovation"
             if quote_citation:
                 quote_citation = substitute_assignment_variables(quote_citation, conn)
             
-            # Add slide separator
-            content += '\n---\n\n'
+            # Add slide separator (skip for first slide if no frontmatter)
+            if is_first_slide and format_type in ['pptx', 'odp']:
+                # First slide in PPTX/ODP - no separator needed
+                is_first_slide = False
+            else:
+                content += '\n---\n\n'
+                is_first_slide = False
+            
+            # For PPTX/ODP export: add layout hint based on template_base
+            pptx_layout = None
+            if format_type in ['pptx', 'odp'] and template_base:
+                pptx_layout = pptx_layouts.get(template_base)
             
             # Check if this is a title slide
             if is_title:
-                # Title slide background + colorbar div (more reliable in PDF)
-                content += f'<!-- _class: title -->\n'
-                content += f'![bg](../assets/title-background.jpg)\n'
-                content += f'<div class="colorbar"></div>\n'
-                content += f'# Journalism Innovation\n'
-                content += f'## {week}\n'
-                content += f'{date}\n'
+                # Title slide background + colorbar div (for PDF)
+                if format_type == 'pdf':
+                    content += f'<!-- _class: title -->\n'
+                    content += f'![bg](../assets/title-background.jpg)\n'
+                    content += f'<div class="colorbar"></div>\n'
+                    content += f'# Journalism Innovation\n'
+                    content += f'## {week}\n'
+                    content += f'{date}\n'
+                elif format_type in ['pptx', 'odp']:
+                    # For PPTX, use Arches_Title layout
+                    # Put everything in the div to ensure pandoc treats it as slide content
+                    content += f'::: {{custom-style="Arches_Title"}}\n\n'
+                    content += f'# Journalism Innovation\n\n'
+                    content += f'## {week}\n\n'
+                    content += f'{date}\n\n'
+                    content += f':::\n'
+                else:
+                    # Fallback for other formats
+                    content += f'# Journalism Innovation\n'
+                    content += f'## {week}\n'
+                    content += f'{date}\n'
                 continue
             
-            # Add class (append hide-headline and/or fullscreen class if needed)
-            if slide_class:
+            # Add class for PDF (Marp uses CSS classes)
+            if slide_class and format_type == 'pdf':
                 classes = [slide_class]
                 if hide_headline:
                     classes.append('hide-headline')
@@ -806,23 +844,60 @@ COURSE_TITLE: "Journalism Innovation"
             is_photo_centered = slide_class == 'photo-centered'
             is_closing = slide_class == 'closing'
             
+            # For PPTX/ODP with pandoc: headline and images go BEFORE the div, text content goes INSIDE
+            if format_type in ['pptx', 'odp'] and pptx_layout:
+                # Add headline at top level (becomes slide title)
+                if headline and not is_closing:
+                    content += f'# {headline}\n\n'
+                
+                # Add image at top level (before div) for photo-centered and image templates
+                if image_path and (is_photo_centered or is_image_template):
+                    # Convert image paths for PPTX/ODP
+                    if image_path.startswith('/assets/'):
+                        image_path = 'assets/' + image_path[8:]
+                    elif image_path.startswith('assets/'):
+                        pass  # Keep as-is
+                    content += f'![Image]({image_path})\n\n'
+                
+                # Start custom-style div for text content only
+                content += f'::: {{custom-style="{pptx_layout}"}}\n\n'
+            
             if is_closing:
                 # Closing slide: headline (contact info) and paragraph (thank you)
                 if headline:
-                    # Split headline into lines and wrap first line in span, join rest with <br>
-                    lines = headline.split('\n')
-                    if lines:
-                        remaining_lines = '<br>'.join(lines[1:]) if len(lines) > 1 else ''
-                        if remaining_lines:
-                            content += f'# <span class="closing-name">{lines[0]}</span><br>{remaining_lines}\n'
-                        else:
-                            content += f'# <span class="closing-name">{lines[0]}</span>\n'
-                
-                if paragraph:
-                    content += f'\n{paragraph}\n'
-                
-                # Add school logo at bottom
-                content += f'\n![width:400px](../assets/journalism_school_logo.png)\n'
+                    if format_type in ['pptx', 'odp']:
+                        # For PPTX, put first line as title, rest in content div
+                        lines = headline.split('\n')
+                        if lines:
+                            content += f'# {lines[0]}\n\n'
+                            # Add custom-style div if pptx_layout exists
+                            if pptx_layout and format_type in ['pptx', 'odp']:
+                                content += f'::: {{custom-style="{pptx_layout}"}}\n\n'
+                            # Add remaining headline lines
+                            if len(lines) > 1:
+                                content += '\n'.join(lines[1:]) + '\n\n'
+                            # Add paragraph
+                            if paragraph:
+                                content += f'{paragraph}\n\n'
+                            # Add logo
+                            if format_type == 'pdf':
+                                content += f'![width:400px](../assets/journalism_school_logo.png)\n'
+                            # Close div for PPTX
+                            if pptx_layout and format_type in ['pptx', 'odp']:
+                                content += ':::\n'
+                    else:
+                        # For PDF, use span styling
+                        lines = headline.split('\n')
+                        if lines:
+                            remaining_lines = '<br>'.join(lines[1:]) if len(lines) > 1 else ''
+                            if remaining_lines:
+                                content += f'# <span class="closing-name">{lines[0]}</span><br>{remaining_lines}\n'
+                            else:
+                                content += f'# <span class="closing-name">{lines[0]}</span>\n'
+                        if paragraph:
+                            content += f'\n{paragraph}\n'
+                        # Add school logo at bottom
+                        content += f'\n![width:400px](../assets/journalism_school_logo.png)\n'
             elif is_quote_template:
                 # Quote templates: only export quote and citation
                 if quote:
@@ -830,22 +905,22 @@ COURSE_TITLE: "Journalism Innovation"
                     if quote_citation:
                         content += f'>\n> {quote_citation}\n'
             elif is_photo_centered:
-                # Photo centered: only headline and image
-                if headline:
+                # Photo centered: only headline and image (headline already added above for PPTX, image too)
+                if headline and format_type == 'pdf':
                     content += f'# {headline}\n'
                 
-                # Add image if present
-                if image_path:
+                # Add image if present (only for PDF, PPTX already added it above)
+                if image_path and format_type == 'pdf':
                     # Convert absolute web paths to relative filesystem paths
-                    # /assets/cover.png -> ../assets/cover.png (relative from output/ directory)
                     if image_path.startswith('/assets/'):
-                        image_path = '../assets/' + image_path[8:]  # Remove '/assets/' and add '../assets/'
+                        image_path = '../assets/' + image_path[8:]
                     elif image_path.startswith('assets/'):
-                        image_path = '../' + image_path  # Add '../' prefix
+                        image_path = '../' + image_path
                     content += f'\n![Image]({image_path})\n'
             else:
                 # Non-quote templates: export headline, paragraph, bullets
-                if headline:
+                # For PDF, add headline here; for PPTX it was already added above
+                if headline and format_type == 'pdf':
                     content += f'# {headline}\n'
                 
                 if is_text_only:
@@ -867,15 +942,18 @@ COURSE_TITLE: "Journalism Innovation"
                         except json.JSONDecodeError:
                             pass
                 
-                # Add image if present
-                if image_path and is_image_template:
+                # Add image if present (only for PDF; PPTX already added it before the div)
+                if image_path and is_image_template and format_type == 'pdf':
                     # Convert absolute web paths to relative filesystem paths
-                    # /assets/cover.png -> ../assets/cover.png (relative from output/ directory)
                     if image_path.startswith('/assets/'):
-                        image_path = '../assets/' + image_path[8:]  # Remove '/assets/' and add '../assets/'
+                        image_path = '../assets/' + image_path[8:]
                     elif image_path.startswith('assets/'):
-                        image_path = '../' + image_path  # Add '../' prefix
+                        image_path = '../' + image_path
                     content += f'\n![Image]({image_path})\n'
+            
+            # Close PPTX/ODP layout div
+            if format_type in ['pptx', 'odp'] and pptx_layout:
+                content += '\n:::\n'
         
         conn.close()
         
@@ -891,24 +969,80 @@ COURSE_TITLE: "Journalism Innovation"
         with open(temp_md, 'w') as f:
             f.write(content)
         
-        # Use Marp for all exports - slides render as images with perfect styling
+        # Export logic by format
         if format_type == 'pdf':
+            # Use Marp for PDF - renders with perfect styling
             cmd = f'marp "{temp_md}" -o "{output_file}" --allow-local-files --pdf --theme presentation-styles.css'
+            print(f"Running command: {cmd}")
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            print(f"Return code: {result.returncode}")
+            print(f"Stdout: {result.stdout}")
+            print(f"Stderr: {result.stderr}")
+        elif format_type == 'pptx':
+            # Use python-pptx for direct PPTX generation with custom layouts
+            print(f"Building PPTX with python-pptx using custom layouts")
+            try:
+                # Get slides data again for pptx_builder
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
+                                    image_path, is_title, hide_headline, fullscreen, template_base
+                             FROM slides 
+                             WHERE deck_id = ?
+                             ORDER BY order_index''', (deck_id,))
+                slides_data = c.fetchall()
+                conn.close()
+                
+                # Build PPTX using custom layouts
+                success = build_pptx_from_slides(
+                    slides_data=slides_data,
+                    output_path=output_file,
+                    template_path='4734_template.potx',
+                    pptx_layouts_map=pptx_layouts,
+                    deck_info={'week': week, 'date': date, 'course_title': 'Journalism Innovation'}
+                )
+                
+                if success:
+                    print(f"Successfully created PPTX: {output_file}")
+                    result = type('obj', (object,), {'returncode': 0})()
+                else:
+                    print(f"Failed to create PPTX")
+                    result = type('obj', (object,), {'returncode': 1})()
+            except Exception as e:
+                print(f"Error building PPTX: {e}")
+                import traceback
+                traceback.print_exc()
+                result = type('obj', (object,), {'returncode': 1})()
         elif format_type == 'odp':
-            # For ODP, first create PPTX then convert with LibreOffice
+            # For ODP, first create PPTX with python-pptx then convert with LibreOffice
             temp_pptx = output_file.replace('.odp', '_temp.pptx')
-            cmd = f'marp "{temp_md}" -o "{temp_pptx}" --allow-local-files --pptx --theme presentation-styles.css'
-        else:  # pptx
-            # Marp PPTX without editable mode - slides as images with perfect rendering
-            cmd = f'marp "{temp_md}" -o "{output_file}" --allow-local-files --pptx --theme presentation-styles.css'
+            print(f"Building temporary PPTX for ODP conversion")
+            try:
+                # Get slides data for pptx_builder
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
+                                    image_path, is_title, hide_headline, fullscreen, template_base
+                             FROM slides 
+                             WHERE deck_id = ?
+                             ORDER BY order_index''', (deck_id,))
+                slides_data = c.fetchall()
+                conn.close()
+                
+                # Build PPTX
+                build_pptx_from_slides(
+                    slides_data=slides_data,
+                    output_path=temp_pptx,
+                    template_path='4734_template.potx',
+                    pptx_layouts_map=pptx_layouts,
+                    deck_info={'week': week, 'date': date, 'course_title': 'Journalism Innovation'}
+                )
+                result = type('obj', (object,), {'returncode': 0})()
+            except Exception as e:
+                print(f"Error building temp PPTX: {e}")
+                result = type('obj', (object,), {'returncode': 1})()
         
-        print(f"Running command: {cmd}")
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        print(f"Return code: {result.returncode}")
-        print(f"Stdout: {result.stdout}")
-        print(f"Stderr: {result.stderr}")
-        
-        # For ODP, convert PPTX to ODP using LibreOffice
+        # For ODP, convert PPTX to ODP using LibreOffice  
         if format_type == 'odp' and result.returncode == 0:
             soffice_path = '/Applications/LibreOffice.app/Contents/MacOS/soffice'
             odp_cmd = f'"{soffice_path}" --headless --convert-to odp --outdir output "{temp_pptx}"'

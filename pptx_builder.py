@@ -11,7 +11,7 @@ import json
 import os
 
 
-def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts_map):
+def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts_map, deck_info=None):
     """
     Build a PPTX file directly from slide data using custom layouts.
     
@@ -20,6 +20,7 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
         output_path: Path where PPTX should be saved
         template_path: Path to POTX/PPTX template file  
         pptx_layouts_map: Dict mapping template_base to layout names
+        deck_info: Dict with course_title, week, date for title slide
     """
     import zipfile
     import shutil
@@ -96,7 +97,7 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
         
         # Populate placeholders based on slide type
         if is_title:
-            populate_title_slide(slide, headline, paragraph)
+            populate_title_slide(slide, headline, paragraph, deck_info)
         elif template_base == "closing":
             populate_closing_slide(slide, headline, paragraph, image_path)
         elif template_base == "photo-centered":
@@ -115,39 +116,36 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
     return True
 
 
-def populate_title_slide(slide, headline, paragraph):
+def populate_title_slide(slide, headline, paragraph, deck_info=None):
     """Populate title slide with course name, week, and date."""
-    # Find title and subtitle placeholders
-    title_placeholder = None
-    subtitle_placeholder = None
+    # Get deck information
+    course_title = deck_info.get('course_title', 'Journalism Innovation') if deck_info else 'Journalism Innovation'
+    week = deck_info.get('week', '') if deck_info else ''
+    date = deck_info.get('date', '') if deck_info else ''
     
-    for shape in slide.placeholders:
-        ph_type = shape.placeholder_format.type
-        if ph_type == 1:  # Title
-            title_placeholder = shape
-        elif ph_type in [2, 3]:  # Subtitle or Body
-            subtitle_placeholder = shape
+    # Find the three placeholders (should be course title, week, date)
+    placeholders = [shape for shape in slide.placeholders if shape.placeholder_format.type in [1, 2, 7]]  # Title, Body, Object
     
-    if title_placeholder:
-        if title_placeholder.has_text_frame:
-            text_frame = title_placeholder.text_frame
-            if text_frame.paragraphs:
-                text_frame.paragraphs[0].text = ""
-                while len(text_frame.paragraphs) > 1:
-                    elem = text_frame.paragraphs[1]._element
-                    elem.getparent().remove(elem)
-        title_placeholder.text = "Journalism Innovation"
-    
-    if subtitle_placeholder:
-        if subtitle_placeholder.has_text_frame:
-            text_frame = subtitle_placeholder.text_frame
-            if text_frame.paragraphs:
-                text_frame.paragraphs[0].text = ""
-                while len(text_frame.paragraphs) > 1:
-                    elem = text_frame.paragraphs[1]._element
-                    elem.getparent().remove(elem)
-        if headline:
-            subtitle_placeholder.text = headline
+    if len(placeholders) >= 3:
+        # Placeholder 1: Course Title
+        if placeholders[0].has_text_frame:
+            placeholders[0].text = course_title
+        
+        # Placeholder 2: Week
+        if placeholders[1].has_text_frame:
+            placeholders[1].text = week if week else 'Week'
+            
+        # Placeholder 3: Date  
+        if placeholders[2].has_text_frame:
+            placeholders[2].text = date if date else 'Date'
+    else:
+        # Fallback to old behavior if not enough placeholders
+        for shape in slide.placeholders:
+            ph_type = shape.placeholder_format.type
+            if ph_type == 1:  # Title
+                if shape.has_text_frame:
+                    shape.text = course_title
+                break
 
 
 def populate_quote_slide(slide, quote, quote_citation):

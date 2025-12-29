@@ -1,0 +1,18 @@
+{
+  "title": "Arches_Title",
+  "bullets": "White_Bullets",
+  "template-bullets": "White_Bullets",
+  "bullets-image": "White_Bullets_Photo",
+  "template-bullets-image": "White_Bullets_Photo",
+  "bullets-image-split": "White_Bullets_Photo",
+  "gold-bullets": "Gold_Bullets",
+  "gold-bullets-image-split": "Gold_Bullets_Photo",
+  "gold-quote": "Gold_Quote",
+  "gold-quote-headline": "Gold_Quote",
+  "quote": "White_Quote",
+  "photo-centered": "White_Photo",
+  "closing": "Mizzou_Close",
+  "lines": "White_Text",
+  "template-lines": "White_Text",
+  "gold-lines": "Gold_Text"
+}

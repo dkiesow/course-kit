@@ -17,7 +17,7 @@ _class: title
 
 ---
 
-<!-- _class: gold-quote-headline -->
+<!-- _class: gold-quote -->
 > "When a 14 year old kid can blow up your business in his spare time, not because he hates you but because he loves you, then you got a problem."
 >
 > Clay Shirkey, 2008
@@ -66,7 +66,8 @@ _class: title
 <!-- _class: template-bullets -->
 # Final Paper
 
-Proposal DUE Sept 26 - Draft Due Nov 5 - Final Due Dec 10.<br>Your final project for the semester is a 10-page report on 'the future of news.’ Topics could include:
+Proposal DUE February 13 - Draft Due March 6 - Final Due May 7.
+Your final project for the semester is a 10-page report on 'the future of news.’ Topics could include:
 
 - A case study of a news organization that is succeeding
 - Interviews with news professionals with a specific focus
@@ -94,13 +95,17 @@ Proposal DUE Sept 26 - Draft Due Nov 5 - Final Due Dec 10.<br>Your final project
 <!-- _class: template-lines -->
 # Unit Quizzes
 
-**Quiz ONE** Week 4<br>*Chapters 1-4*
+**Quiz ONE** Week 4 
+*Chapters 1-4*
 
-**Quiz TWO** Week 8<br>*Chapters 5-6*
+**Quiz TWO** Week 8 
+*Chapters 5-6*
 
-**Quiz THREE** Week 12<br>*Chapters 7-8*
+**Quiz THREE** Week 12 
+*Chapters 7-8*
 
-**Quiz FOUR** Week 15<br>*Chapters 9-11*
+**Quiz FOUR** Week 15 
+*Chapters 9-11*
 
 
 ---
@@ -195,9 +200,9 @@ Weighted Categories
 <!-- _class: template-lines -->
 # Journalist’s Creed
 
-I believe that the public journal is a public trust; that all connected with it are, to the full measure of their responsibility, trustees for the public; that acceptance of a lesser service than the public service is betrayal of this trust
+I believe that the public journal is a public trust; that all connected with it are, to the full measure of their responsibility, trustees for the public; that acceptance of a lesser service than the public service is betrayal of this trust 
 
-I believe that clear thinking and clear statement, accuracy and fairness are fundamental to good journalism.
+I believe that clear thinking and clear statement, accuracy and fairness are fundamental to good journalism.  
 
 I believe that advertising, news and editorial columns should alike serve the best interests of readers; that a single standard of helpful truth and cleanness should prevail for all; that the supreme test of good journalism is the measure of its public service.
 
@@ -235,6 +240,7 @@ Methods and tactics to make decisions in support of sustaining the mission and p
 # External resources
 
 News Product Alliance
+
 
 - Sign-up: https://newsproduct.org/slack
 - Sign-up: https://newsproduct.org/slack
@@ -290,7 +296,7 @@ Needs two column
 
 ---
 
-<!-- _class: template-bullets -->
+<!-- _class: gold-bullets -->
 # Social and Audience Strategy
 
 Students will learn to apply critical thinking at the intersection of journalism, technology and audience needs. You will learn and practice audience engagement tactics on social media platforms and research and develop organizational strategy by understanding how different digital channels: web, app, email, or podcast can be used to support community information needs and support a sustainable business. You will learn methods of news innovation to align organizational and community efforts in support of quality journalism.
@@ -313,13 +319,18 @@ Relevant job titles: Digital media producer, news product manager, editor, dir
 
 <!-- _class: template-lines -->
 
-Information used to be expensive to distribute.<br>Then came the Web.<br>Information used to be expensive to access.<br>Then came mobile.<br>Information used to be expensive to produce.<br>Then came AI.
+Information used to be expensive to distribute.
+Then came the Web.
+Information used to be expensive to access.
+Then came mobile.
+Information used to be expensive to produce.
+Then came AI.
 
 
 ---
 
 <!-- _class: template-bullets -->
-# New Slide
+# Jobs to be Done
 
 - Make me smarter
 - Give me something to talk about
@@ -344,10 +355,10 @@ Information used to be expensive to distribute.<br>Then came the Web.<br>Informa
 
 ---
 
-<!-- _class: template-bullets -->
-# Thank You
+<!-- _class: closing -->
+# <span class="closing-name">Damon Kiesow </span><br>Knight Chair in <br>Journalism Innovation <br>216 Reynolds Journalism Institute <br>dkiesow@missouri.edu
 
-Damon Kiesow<br>Knight Chair in<br>Journalism Innovation<br>216 Reynolds Journalism Institute<br>dkiesow@missouri.edu
+Thank You
 
 
 ---
@@ -365,9 +376,9 @@ _class: title
 ---
 
 <!-- _class: photo-centered -->
-# Cause and Effect
+# Feedback Loops
 
-![Image](assets/cause_effect.png)
+![Image](/assets/cause_effect.png)
 
 
 ---
@@ -386,7 +397,7 @@ _class: title
 <!-- _class: photo-centered hide-headline -->
 # Caffeine
 
-![Image](assets/caffeine.png)
+![Image](/assets/caffeine.png)
 
 
 ---
@@ -420,3 +431,896 @@ A newspaper wants to launch a subscription service / paywall
 
 - Is this problem simple, complicated, complex or chaotic?
 - How do we go about simplifying it?
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# News Product Thinking
+
+A set of tools useful to break complex / chaotic problems into smaller questions for analysis. It focuses on audience needs (which don’t change) and builds up from there.
+
+![Image](/assets/venn.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Making things easier
+
+- Breaking a problem into component parts
+- Using the right tools / methods for analysis
+- Reduces the difficulty of each step
+- Reduces the cognitive load
+- Provides interim and final explanations to help keep us on track
+
+
+---
+
+<!-- _class: photo-centered hide-headline -->
+# Scientific Method
+
+![Image](/assets/synthesis.png)
+
+
+---
+
+<!-- _class: photo-centered -->
+# Build Measure Learn
+
+
+---
+
+<!-- _class: photo-centered -->
+# SWOT
+
+![Image](/assets/swot.png)
+
+
+---
+
+<!-- _class: photo-centered -->
+# Root Cause Analysis
+
+![Image](/assets/root_cause.png)
+
+
+---
+
+<!-- _class: photo-centered -->
+# Propensity to Pay
+
+![Image](/assets/value_chart.png)
+
+
+---
+
+<!-- _class: photo-centered -->
+# Propensity to Pay
+
+![Image](/assets/skibinski.png)
+
+
+---
+
+<!-- _class: photo-centered -->
+# Conjoint Studies
+
+![Image](/assets/conjoint.png)
+
+
+---
+
+<!-- _class: photo-centered -->
+# Root Cause Analysis
+
+![Image](/assets/root_cause.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# A broken fan
+
+- You are staying for a few days in a friend’s apartment in a brand new building
+- Your friend is out and you have turned on the fan to cool the room
+- Ten minutes later the fan turns off - you turn it back on
+- Five minutes later it turns off again - and so on, several times
+
+
+---
+
+<!-- _class: template-bullets -->
+# Problem Domains
+
+- User Error
+- Mechanical failure
+- Power supply
+- Accidental cause
+- Other actor
+- External systems
+
+
+---
+
+<!-- _class: template-bullets -->
+# The root cause
+
+- The building is new
+- Every apartment has the same brand / model ceiling fan
+- They have a remote control
+- Each remote carries one of eight different ID codes to connect to a specific fan
+- The remotes in this building can reach 16 different apartments
+
+
+---
+
+<!-- _class: template-bullets -->
+# Five Whys
+
+- ISSUE: The fan keeps turning off
+- Why: The remote controls reach other apartments
+- Why: The RF strength is too high
+- (And) Why: The remotes have overlapping ID codes
+- (And) Why: Only eight codes are programmed
+- Why: The design of the fans assumed single-family homes, not apartments
+- (Also) Why: The developer of the apartments did not read the fine print
+
+
+---
+
+<!-- _class: template-lines -->
+# Semester plan
+
+**UNIT I **
+*What is Product Management?*
+1 - The News Product Manager
+2 - Brief History of Product Management
+3 - Theories of Product Management
+4 - Theories of Innovation
+
+
+
+---
+
+<!-- _class: template-lines -->
+# Semester Plan
+
+**UNIT II**
+*Product Management in News*
+5 - The Business of Content
+6 - Managing News Innovation
+7 - The Mission of News Product
+
+
+---
+
+<!-- _class: template-lines -->
+# Semester Plan
+
+**UNIT III**
+*Making News Products*
+7 - The Mission of News Product
+8 - Product is Research
+
+
+
+---
+
+<!-- _class: template-lines -->
+# Semester Plan
+
+**UNIT IV**
+*Product is Learning*
+9 - Product is Prioritization
+10- Product is Building
+11  Product is Learning
+
+
+---
+
+<!-- _class: gold-lines hide-headline -->
+# Journalism is a Business.
+
+Journalism is a *Business.*
+And a *Public Good.*
+And in a *Market Failure.*
+
+How do we manage through that?
+
+
+---
+
+<!-- _class: gold-bullets hide-headline -->
+# It starts with
+
+**It starts with**
+
+Understanding audience needs
+Understanding how we / they think
+Understanding how our organizations function & change
+
+
+---
+
+<!-- _class: template-bullets -->
+# Final Paper Proposal Due February 13
+
+The first assignment is a 250 - 300 word proposal. Include:
+
+
+- An explanation of the topic you plan to explore/discuss.
+- An initial list of reference sources (websites, articles, books etc).
+- A suggestion of any primary human sources (journalists, academics, other experts).
+- Why the topic is of interest to you and relevant to the coursework.
+- What are your initial assumptions or arguments about the topic?
+- Send me a paragraph in advance for early feedback / suggestions
+
+
+---
+
+<!-- _class: template-bullets -->
+# Final Due May 7
+
+Your final report is due May 7 and should be ten page (15 for M.A.), in 10 point double spaced Times New Roman or similar serif font. Page length includes references.
+
+
+- Introduction
+- Argument/Analysis.
+- Conclusions / Discussion.
+- Reference / Source list.
+
+
+---
+
+<!-- _class: template-bullets -->
+# Final Due May 7
+
+The paper will be evaluated in the merits of the research and argument
+But I am also looking for the use of relevant theories or concepts from class
+**Could be:**
+
+
+- Human centered design
+- Theories of innovation, change management, business analysis
+- Marketing and consumer behavior
+- Community / audience research
+- Business models and strategies
+
+
+---
+
+<!-- _class: closing -->
+# <span class="closing-name">Damon Kiesow</span><br>Knight Chair in <br>Journalism Innovation<br>216 Reynolds Journalism Institute<br>dkiesow@missouri.edu
+
+Thank You
+
+
+---
+
+<!--
+WEEK: "Two - Wednesday"
+DATE: "1/28/20206"
+_class: title
+-->
+# {{COURSE_TITLE}}
+## {{WEEK}}
+{{DATE}}
+
+
+---
+
+<!-- _class: template-bullets -->
+# Brand Management —> Marketing
+
+- Product *(what)*
+- Price *(how much)*
+- Promotion *(why)*
+- Place *(where)*
+
+
+---
+
+<!-- _class: template-bullets -->
+# Eras of marketing
+
+- Production-focused *(provide goods, reduce costs)*
+- Sales-focused *(sell more volume)*
+- Marketing-focused *(differentiate on customer needs)*
+- Relationship-focused *(customer orientation)*
+
+
+---
+
+<!-- _class: photo-centered hide-headline fullscreen -->
+# General Store
+
+![Image](/assets/general_store.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# The invention of consumerism
+
+- Industrialization of the U.S. reduced costs and increased volume
+- Railroads drove mass distribution
+- Mass distribution increased competition
+- Competition incentivized diversification
+- Diversification required marketing and promotion to differentiate
+
+
+---
+
+<!-- _class: template-bullets -->
+# The business of business
+
+- Diversification and distribution required specialization
+- Managing specialization and scale led to organizational restructuring
+- Restructuring required re-allocation of previously shared functions
+- Functional - One Design department across brands
+- Divisional - Each brand with its own Design team
+- Matrix - Each brand has dedicated Designers from a centralized team
+
+
+---
+
+<!-- _class: template-bullets -->
+# Organizational Structure 
+
+- Flat - small organizations
+- Functional - shared resources across products / divisions
+- Divisional - resources work within a division
+- Matrix - structure depends on the department / function
+
+
+---
+
+<!-- _class: template-bullets -->
+# Brand and Product Management
+
+- McElroy at Camay / Procter & Gamble
+- “Brand Men” memo - how to cope with rapidly changing markets, consumer taste and increasing competition?
+- P&G had a Functional Org - all shared resources
+- Needed more resources and expertise - internal and external competition (Ivory soap)
+- We will discuss ‘Division of Labor’ in Chapter 3
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Why soap?
+
+- What drove McElroy’s urgency?
+- What are the ingredients for soap?
+- Where are they sourced?
+- What is the cost of production?
+- What makes two brands different?
+
+![Image](/assets/camay_soap_ad.png)
+
+
+---
+
+<!-- _class: gold-bullets -->
+# Why Soap?
+
+To grow sales, he wanted to build a business within a business.
+
+- Decentralization of work and control
+- Local capacity and expertise
+- Easier cordination of work
+- Improved information sharing and alignment
+
+
+---
+
+<!-- _class: photo-centered -->
+# Control vs Agility
+
+![Image](/assets/control_agility.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# What works best?
+
+WHY do many businesses land on a Hybrid model?
+
+- **Centralization and Control** work best in stable, mature markets
+- And, in businesses with a single product and market
+- **Decentralization and Agility** are better suited to new and chaotic markets
+- Or, in businesses with diversified products and markets
+
+
+---
+
+<!-- _class: template-bullets -->
+# Hybrid
+
+- Some functions (Accounting) should not be innovating
+- Other functions (Human Resources) may be centralized with some minimal risk
+- Depending on the core consumer value of the business - functions that differentiate (Design, Marketing) might be best de-centralized/kept very local.
+
+
+---
+
+<!-- _class: template-bullets -->
+# Why an audience focus?
+
+Why does decentralization / optimization often win?
+
+- In a competitive environment - products must differentiate
+- Quickest way is to understand and serve consumer needs
+- Business must allow workers closest to customers (who have empathy / understanding of needs) to drive change
+- Organizational Structure must balance decentralization and efficiency
+
+
+---
+
+<!-- _class: template-bullets -->
+# News organizations - Overly-centralized?
+
+Risks?
+
+- Reporting
+- Editing
+- Producing
+- Design
+- Producing
+- Ad sales
+- Subscription sales
+- Technology
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Business runs on information
+
+- Access to information
+- Management of information
+- Translation of information
+
+![Image](/assets/info-data-insights.png)
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Manufacturing —> Digital
+
+- Factory management processes were adopted for digital
+- Steel and bits are different - but humans are still the key
+- Digital-first ‘Agile’ and other methods have since evolved.
+
+![Image](/assets/factry_line.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Managing information and actions
+
+- Genchi Genbutsu - go see for yourself *(know)*
+- Kaizen - continuous improvement *(change)*
+- Kanban - signposts *(transparency and coordination)*
+
+
+---
+
+<!-- _class: gold-quote -->
+> Digital is the latest evolution of the consumer market. It continues the shift in power.
+
+
+---
+
+<!-- _class: template-bullets -->
+# Start by discovering consumer needs
+
+People are complicated and multitasking. They don’t always recognize or can’t always explain needs and possible solutions.
+
+
+- We need to understand how people think and why
+- We must use appropriate research methods
+- Then, synthesize the data and develop insights
+
+
+---
+
+<!-- _class: template-bullets -->
+# Discovering consumer needs
+
+- Our brains don’t work the way we think they do
+- We don’t make decisions rationally
+- We must adjust for our own bias and that of consumers
+
+
+---
+
+<!-- _class: photo-centered hide-headline -->
+# Checkerboard
+
+![Image](/assets/chckerboard_illusion.png)
+
+
+---
+
+<!-- _class: photo-centered hide-headline fullscreen -->
+# Cracker Aisle
+
+![Image](/assets/cracker_aisle.png)
+
+
+---
+
+<!-- _class: photo-centered hide-headline fullscreen -->
+# Cracker Aisle How
+
+![Image](/assets/cracker_aisle_how.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Heuristics
+
+Do you?
+
+- Read the ingredients and check the price of every package?
+- Or, do you buy the same brand every time?
+
+
+---
+
+<!-- _class: template-bullets -->
+# Bounded rationality (page 31)
+
+- We do NOT make decisions based on perfect information, focused attention and flawless judgement. *(Optimizing)*
+- Traditional economic theory assumes we do.
+
+
+---
+
+<!-- _class: template-bullets -->
+# Bounded rationality
+
+- Our decisions are made with limited information, are based heavily on past experiences and are made in a rush. We try to balance the effort of the decision against the costs and benefits of the choice. *(Satisficing)*
+- We call this reliance on patterns a heuristic - or an informed guess.
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Don’t make me think
+
+- Satisficing vs Optimizing
+- Our brains have limited processing power
+- Working (transient) memory is required to learn new things
+- If overloaded, frustration and task failure results
+- Solutions must minimize load
+
+![Image](/assets/brain_gears.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# New Slide
+
+
+---
+
+<!-- _class: template-quote -->
+> The more important the decision, the more we are likely to deliberate. But still, that is not done without bias.
+
+
+---
+
+<!-- _class: photo-centered hide-headline fullscreen -->
+# Cognitive Bias Chart
+
+![Image](/assets/cognitive_bias_blue.png)
+
+
+---
+
+<!-- _class: photo-centered hide-headline fullscreen -->
+# Cognitive Bias Causes
+
+![Image](/assets/cognitave_bias_causes.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Explaining the why
+
+- The brain wants to make sense of events - a story provides that.
+- Metaphors: “the project is a marathon.”
+- Case examples: “Amazon started in a garage.”
+- Simple stories: “1 + 1 = 2”
+- Absent an accessible and rational answer - the brain will jump to conclusions
+
+
+---
+
+<!-- _class: photo-centered hide-headline -->
+# Surviivor Bias Plane
+
+![Image](/assets/survivor_plane.png)
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Survivor Bias
+
+*(Chapter 3, page 52)*
+
+![Image](/assets/survivor_plane.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Other Cognitive Biases
+
+- Stereotyping
+- Anchoring
+- Fundamental Attribution
+- Confirmation bias
+- Hyperbolic discounting
+
+
+---
+
+<!-- _class: photo-centered -->
+# Cognitive Barriers
+
+![Image](/assets/cognitive_barriers.png)
+
+
+---
+
+<!-- _class: photo-centered -->
+# Cognitive Load
+
+![Image](/assets/cognitive_load.png)
+
+
+---
+
+<!-- _class: template-quote -->
+> "To fix the creaking at the Post, Lewis invokes a couple of tropes from 2012 and 2024, respectively: The company will achieve “scale” by “embracing AI in a much more effective way.” Fair—but almost everyone in the news business is going after some combination of scale and AI (some by letting robots flat-out make stuff up), and odds are it will work for very few. Maybe the Post will be one. I’m rooting for them. But what about the journalism that all of us need to keep democracy alive? What is—to use a word smart men love to toss out—the gamechanger for the news business?”
+>
+> - Monika Bauerlein, 2024
+
+
+---
+
+<!-- _class: template-quote -->
+> “I was 90 days into my job and the AP went through a re-organization and said, ‘Hello all of you bureau chiefs. We’re now changing your jobs, and you now have a complete focus on revenue and we’re removing you from being involved with the news report and the news operation. You’ll come into headquarters in October. You’ll get trained from the Harvard Business School, and that’ll be your new job.’”
+>
+> - Ebony Reed, 2016
+
+
+---
+
+<!-- _class: closing -->
+# <span class="closing-name">Damon Kiesow</span><br>Knight Chair in <br>Journalism Innovation<br>216 Reynolds Journalism Institute<br>dkiesow@missouri.edu
+
+Thank You
+
+
+---
+
+<!--
+WEEK: "Week Three - Monday"
+DATE: "2/2/2026"
+_class: title
+-->
+# {{COURSE_TITLE}}
+## {{WEEK}}
+{{DATE}}
+
+
+---
+
+<!-- _class: template-quote -->
+> Most Americans (69%) say that if their local newspaper no longer existed, it would not have a major impact on their ability to keep up with information and news about their community. Yet the data show that newspapers play a much bigger role in people’s lives than many may realize. Newspapers (both the print and online versions, though primarily print) rank first or tie for first as the source people rely on most for 11 of the 16 different kinds of local information asked about—more topics than any other media source.
+>
+> - Pew Institute via Ken Doctor, 2011
+
+
+---
+
+<!-- _class: template-bullets -->
+# Final Paper Proposal Due February 13
+
+The first assignment is a 250 - 300 word proposal. Include:
+
+
+- An explanation of the topic you plan to explore/discuss.
+- An initial list of reference sources (websites, articles, books etc).
+- A suggestion of any primary human sources (journalists, academics, other experts).
+- Why the topic is of interest to you and relevant to the coursework.
+- What are your initial assumptions or arguments about the topic?
+- Send me a paragraph in advance for early feedback / suggestions
+
+
+---
+
+<!-- _class: template-bullets -->
+# Chapter 2 Recap
+
+- Digital continues the shift to empowering consumers
+- Businesses react by trying to learn / know more
+- Leads to organizational structure / operational changes
+- Brand management -> Marketing & Product
+- Human-Centered Design methods a common tool
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Understanding consumers
+
+- Looking for Jobs to be Done. *(Chapter 9, page 156)*
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# How would you investigate?
+
+![Image](/assets/milkshake.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# How would you investigate?
+
+- Drink a shake
+- Observe customers
+- Review sales records
+- Talk to sales staff
+- Dine at competitors
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Understanding consumers
+
+**Day One**
+Researcher stood inside the restaurant and took an inventory of all milkshake-buying customers. This is a very simple ethnographic-like study.
+
+- 40% of shakes were sold between 6a - 8a.
+- Most purchasers arrived alone
+- Bought only a shake
+- Left with their drink
+
+![Image](/assets/milkshake.png)
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Understanding consumers
+
+Day Two
+
+- The researcher stood outside the restaurant and spoke to milkshake-buying customers. This is a simple interview study.
+
+![Image](/assets/milkshake.png)
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Understanding consumers
+
+**Day Two Questions**
+
+Why did you buy a milkshake?
+**I was hungry.**
+Where are you going?
+**Driving to work.**
+Do you come to this restaurant often?
+**Sometimes.**
+
+![Image](/assets/milkshake.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Understanding consumers
+
+**Better Day Two Questions**
+
+Did you buy a milkshake yesterday?
+**No**
+What did you buy?
+**A bagel; a doughnut; a banana…**
+Today, why did you buy a milkshake instead?
+
+
+---
+
+<!-- _class: template-bullets -->
+# Understanding Jobs to Be Done
+
+On days they did not buy a milkshake, they were filling the same need with other products. (Other foods in this case.)
+
+The consumers were HIRING the milkshake for a specific job.
+
+If we understand the job, we understand their needs and motivations better.
+
+
+---
+
+<!-- _class: template-bullets -->
+# Understanding Jobs to Be Done
+
+**The job in this case:**
+
+These were commuters with a 20 - 30 minute drive to work
+
+They were bored but also hungry
+- A banana is eaten too quickly
+- It is difficult to put cream cheese on a bagel while driving
+- The doughnut is not filling 
+
+The milkshake takes 20 minutes to drink, can be done with one hand and keeps them full until lunch.
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Jobs to be Done
+
+What is the job of a milkshake?
+
+For commuters: Convenience
+
+![Image](/assets/milkshake.png)
+
+
+---
+
+<!-- _class: template-bullets-image -->
+# Jobs to be Done
+
+If the competition is not Burger King milkshake, but a bagel - what opportunities does that avail us to consider - for marketing, product design, audience targeting etc.
+
+![Image](/assets/bagel_and_shake.png)
+
+
+---
+
+<!-- _class: template-bullets -->
+# Quiz Next Week
+
+- Quiz will be open Wednesday-Friday
+- Twenty multiple choice - 60 pts
+- Two essay answers - pick two of the four prompts - 40 pts.
+- Two hours to complete.
+- Open book.
+
+
+---
+
+<!-- _class: template-bullets -->
+# New Slide
+
+
+---
+
+<!-- _class: closing -->
+# <span class="closing-name">Damon Kiesow</span><br>Knight Chair in <br>Journalism Innovation<br>216 Reynolds Journalism Institute<br>dkiesow@missouri.edu
+
+Thank You
