@@ -77,6 +77,8 @@ section.template-bullets-image h1,
 section.template-lines h1,
 section.gold-bullets h1,
 section.gold-bullets-image-split h1,
+section.bullets-image-top h1,
+section.gold-bullets-image-top h1,
 section.mizzou-bullets h1,
 section.gold-bullets-2col h1,
 section.gold-bullets-image h1,
@@ -106,6 +108,8 @@ section.template-bullets-image h1::after,
 section.template-lines h1::after,
 section.gold-bullets h1::after,
 section.gold-bullets-image-split h1::after,
+section.bullets-image-top h1::after,
+section.gold-bullets-image-top h1::after,
 section.mizzou-bullets h1::after,
 section.gold-bullets-2col h1::after,
 section.gold-bullets-image h1::after,
@@ -171,13 +175,30 @@ section.gold-bullets-image-split ol {
 	margin-bottom: 0 !important;
 }
 
+/* Bullets top / image bottom - full width lists */
+section.bullets-image-top ul,
+section.bullets-image-top ol,
+section.gold-bullets-image-top ul,
+section.gold-bullets-image-top ol {
+	padding-left: 50px !important;
+	padding-right: 50px !important;
+	width: 100% !important;
+	max-width: 100% !important;
+	margin-top: -60px !important;
+	margin-bottom: 0 !important;
+}
+
 /* Reduce margin when list follows paragraph in image templates */
 section.template-bullets-image p + ul,
 section.template-bullets-image p + ol,
 section.gold-bullets-image p + ul,
 section.gold-bullets-image p + ol,
 section.gold-bullets-image-split p + ul,
-section.gold-bullets-image-split p + ol {
+section.gold-bullets-image-split p + ol,
+section.bullets-image-top p + ul,
+section.bullets-image-top p + ol,
+section.gold-bullets-image-top p + ul,
+section.gold-bullets-image-top p + ol {
 	margin-top: 0 !important;
 }
 
@@ -186,6 +207,12 @@ section.template-bullets-image p,
 section.gold-bullets-image p,
 section.gold-bullets-image-split p {
 	width: 50% !important;
+}
+
+/* Bullets top / image bottom - full width text */
+section.bullets-image-top p,
+section.gold-bullets-image-top p {
+	width: 100% !important;
 }
 
 section.mizzou {
@@ -344,6 +371,40 @@ section.gold-bullets-image-split img {
 	width: 45% !important;
 	height: auto !important;
 	max-height: calc(100% - 185px - 60px) !important;
+	object-fit: contain !important;
+}
+
+/* Bullets top / image bottom - white background */
+section.bullets-image-top {
+	padding: 175px 60px 60px 60px !important;
+	background-color: #ffffff !important;
+}
+
+section.bullets-image-top img {
+	position: absolute !important;
+	left: 60px !important;
+	right: 60px !important;
+	bottom: 60px !important;
+	width: calc(100% - 120px) !important;
+	height: auto !important;
+	max-height: 40% !important;
+	object-fit: contain !important;
+}
+
+/* Bullets top / image bottom - gold background */
+section.gold-bullets-image-top {
+	padding: 175px 60px 60px 60px !important;
+	background-color: #E7B233 !important;
+}
+
+section.gold-bullets-image-top img {
+	position: absolute !important;
+	left: 60px !important;
+	right: 60px !important;
+	bottom: 60px !important;
+	width: calc(100% - 120px) !important;
+	height: auto !important;
+	max-height: 40% !important;
 	object-fit: contain !important;
 }
 

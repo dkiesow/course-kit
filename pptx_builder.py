@@ -104,7 +104,7 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
             populate_photo_slide(slide, image_path)
         elif template_base in ["quote", "gold-quote"]:
             populate_quote_slide(slide, quote, quote_citation)
-        elif template_base in ["bullets-image", "bullets-image-split", "gold-bullets-image-split"]:
+        elif template_base in ["bullets-image", "bullets-image-split", "bullets-image-top", "gold-bullets-image-split", "gold-bullets-image-top"]:
             # Image layouts - add image
             populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class)
         else:
