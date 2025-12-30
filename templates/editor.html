@@ -1036,7 +1036,12 @@
                         goldCheckbox.checked = isGold;
                     }
                     if (hideHeadlineCheckbox) {
-                        hideHeadlineCheckbox.checked = slide.hideHeadline || false;
+                        // Default to checked (hide headline) for photo-centered templates
+                        if (baseTemplate === 'photo-centered' && slide.hideHeadline === undefined) {
+                            hideHeadlineCheckbox.checked = true;
+                        } else {
+                            hideHeadlineCheckbox.checked = slide.hideHeadline || false;
+                        }
                     }
                     if (fullscreenCheckbox) {
                         fullscreenCheckbox.checked = slide.fullscreen || false;

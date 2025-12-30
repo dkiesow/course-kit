@@ -82,6 +82,12 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
             template_key = slide_class if slide_class else template_base
             layout_name = pptx_layouts_map.get(template_key)
             
+            # For photo-centered templates, use headline version if hide_headline is False
+            if template_key == 'photo-centered' and not hide_headline:
+                layout_name = "White_Photo_Headline"
+            elif template_key == 'gold-photo-centered' and not hide_headline:
+                layout_name = "Gold_Photo_Headline"
+            
             if not layout_name:
                 print(f"Warning: No layout mapping for template '{template_key}'")
                 layout_name = "White_Bullets"
@@ -100,8 +106,8 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
             populate_title_slide(slide, headline, paragraph, deck_info)
         elif template_base == "closing":
             populate_closing_slide(slide, headline, paragraph, image_path)
-        elif template_base == "photo-centered":
-            populate_photo_slide(slide, image_path)
+        elif template_base in ["photo-centered", "gold-photo-centered"]:
+            populate_photo_slide(slide, image_path, headline, hide_headline)
         elif template_base in ["quote", "gold-quote"]:
             populate_quote_slide(slide, quote, quote_citation)
         elif template_base in ["bullets-image", "bullets-image-split", "bullets-image-top", "gold-bullets-image-split", "gold-bullets-image-top"]:
@@ -285,8 +291,24 @@ def populate_closing_slide(slide, headline, paragraph, image_path):
         add_image_to_slide(slide, image_path)
 
 
-def populate_photo_slide(slide, image_path):
-    """Populate photo-centered slide with large image."""
+def populate_photo_slide(slide, image_path, headline=None, hide_headline=True):
+    """Populate photo-centered slide with large image and optional headline."""
+    # Add headline if not hidden
+    if headline and not hide_headline:
+        title_shape = None
+        for shape in slide.shapes:
+            if shape.is_placeholder:
+                ph_type = shape.placeholder_format.type
+                if ph_type == 1:  # Title placeholder
+                    title_shape = shape
+                    break
+        
+        if title_shape and title_shape.has_text_frame:
+            tf = title_shape.text_frame
+            tf.paragraphs[0].text = ""
+            parse_markdown_to_paragraph(tf.paragraphs[0], headline)
+    
+    # Add image
     if image_path:
         add_image_to_slide(slide, image_path, centered=True)
 
