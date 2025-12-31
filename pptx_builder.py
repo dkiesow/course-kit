@@ -528,10 +528,10 @@ def add_image_to_slide(slide, image_path, centered=False):
             # Image is taller - constrain by height
             new_height = ph_height
             new_width = int(ph_height * img_aspect)
-            
-            # Center within placeholder
-            left = ph_left + (ph_width - new_width) // 2
-            top = ph_top + (ph_height - new_height) // 2
+        
+        # Center within placeholder
+        left = ph_left + (ph_width - new_width) // 2
+        top = ph_top + (ph_height - new_height) // 2
         
         # Remove the placeholder and add image in its place
         sp = picture_placeholder.element
