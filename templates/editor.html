@@ -1123,7 +1123,7 @@
                         '<button type="button" onclick="document.getElementById(\'image-picker\').click()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">' +
                             'Choose Image' +
                         '</button>' +
-                        '<input type="file" id="image-picker" accept="image/*" style="display: none;" onchange="handleImageSelection(event)">' +
+                        '<input type="file" id="image-picker" accept="image/*,.gif" style="display: none;" onchange="handleImageSelection(event)">' +
                         '<div id="image-preview" style="margin-top: 15px; display: ' + (slide.imagePath ? 'block' : 'none') + ';">' +
                             '<img src="' + (slide.imagePath || '').replace(/"/g, '&quot;') + '" style="max-width: 100%; max-height: 300px; border: 1px solid #ddd; border-radius: 4px; display: block;" onerror="this.style.display=\'none\'">' +
                             '<div style="margin-top: 8px; font-size: 12px; color: #666;" id="image-path-display">' + (slide.imagePath || '') + '</div>' +

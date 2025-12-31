@@ -873,3 +873,37 @@ Available layouts: ['White_Bullets', 'White_Text', 'White_Bullets_Photo', 'White
 127.0.0.1 - - [31/Dec/2025 10:50:02] "POST /api/presentations/7/auto-export HTTP/1.1" 200 -
 127.0.0.1 - - [31/Dec/2025 10:51:02] "POST /api/presentations/7/auto-export HTTP/1.1" 200 -
 127.0.0.1 - - [31/Dec/2025 10:52:02] "POST /api/presentations/7/auto-export HTTP/1.1" 200 -
+127.0.0.1 - - [31/Dec/2025 10:53:02] "POST /api/presentations/7/auto-export HTTP/1.1" 200 -
+127.0.0.1 - - [31/Dec/2025 10:54:02] "POST /api/presentations/7/auto-export HTTP/1.1" 200 -
+127.0.0.1 - - [31/Dec/2025 10:55:03] "POST /api/presentations/7/auto-export HTTP/1.1" 200 -
+ * Detected change in '/Users/kiesowd/slides-marp/pptx_builder.py', reloading
+    Adding paragraph text: Aligning a product or service with the needs of a ...
+    Adding 4 bullets
+    Adding paragraph text: New restaurant in town: One Thing
+
+**Who is this r...
+    Adding 4 bullets
+    Adding paragraph text: A constraint (one dish or one price) is a design c...
+    Adding 4 bullets
+    Adding 5 bullets
+    Adding paragraph text: Implicitly, we have NEVER been equally serving 'ev...
+    Adding 6 bullets
+    Adding 5 bullets
+    Adding 5 bullets
+Successfully created PPTX: output/Week_Week Six - Monday_2-23-2026.pptx
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 123-942-360
+127.0.0.1 - - [31/Dec/2025 10:56:03] "POST /api/presentations/7/auto-export HTTP/1.1" 200 -
+ * Detected change in '/Users/kiesowd/slides-marp/pptx_builder.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 123-942-360
+ * Detected change in '/Users/kiesowd/slides-marp/pptx_builder.py', reloading
+ * Restarting with stat
+Traceback (most recent call last):
+  File "/Users/kiesowd/slides-marp/app.py", line 7, in <module>
+    from pptx_builder import build_pptx_from_slides
+  File "/Users/kiesowd/slides-marp/pptx_builder.py", line 523
+    if img_aspect > ph_aspect:
+IndentationError: unexpected indent

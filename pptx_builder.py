@@ -48,6 +48,14 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
                 'presentationml.template.main',
                 'presentationml.presentation.main'
             )
+            # Add GIF support if not already present
+            if 'image/gif' not in content_xml:
+                # Insert GIF content type after PNG
+                content_xml = content_xml.replace(
+                    '<Default Extension="png" ContentType="image/png"/>',
+                    '<Default Extension="png" ContentType="image/png"/><Default Extension="gif" ContentType="image/gif"/>'
+                )
+                print("Added GIF content type support to template")
             files['[Content_Types].xml'] = content_xml.encode('utf-8')
         
         # Write back
@@ -473,6 +481,24 @@ def add_image_to_slide(slide, image_path, centered=False):
         print(f"Warning: Image not found: {image_path}")
         return
     
+    # Get image dimensions - handle GIFs specially to preserve animation
+    if image_path.lower().endswith('.gif'):
+        # For GIFs, use a simpler approach to avoid PIL processing that might strip animation
+        try:
+            from PIL import Image
+            with Image.open(image_path) as img:
+                img_width, img_height = img.size
+                # Don't process the image further - let python-pptx handle it directly
+        except Exception as e:
+            print(f"Warning: Could not read GIF dimensions: {e}")
+            # Use default dimensions if we can't read the file
+            img_width, img_height = 800, 600
+    else:
+        # For other formats, use normal PIL processing
+        from PIL import Image
+        with Image.open(image_path) as img:
+            img_width, img_height = img.size
+    
     # Try to find a picture placeholder
     picture_placeholder = None
     for shape in slide.shapes:
@@ -489,11 +515,9 @@ def add_image_to_slide(slide, image_path, centered=False):
         ph_left = picture_placeholder.left
         ph_top = picture_placeholder.top
         
-        # Get image dimensions
-        with Image.open(image_path) as img:
-            img_width, img_height = img.size
-            img_aspect = img_width / img_height
-            ph_aspect = ph_width / ph_height
+        # Use the image dimensions already determined above
+        img_aspect = img_width / img_height
+        ph_aspect = ph_width / ph_height
             
             # Calculate size to fit within placeholder while maintaining aspect ratio
             if img_aspect > ph_aspect:
@@ -515,12 +539,12 @@ def add_image_to_slide(slide, image_path, centered=False):
         slide.shapes.add_picture(image_path, left, top, width=new_width, height=new_height)
     else:
         # No placeholder - add at native size, centered on slide
-        with Image.open(image_path) as img:
-            img_width_px, img_height_px = img.size
-            # Convert pixels to EMUs (English Metric Units): 1 inch = 914400 EMUs, assume 96 DPI
-            dpi = 96
-            img_width_emu = int(img_width_px * 914400 / dpi)
-            img_height_emu = int(img_height_px * 914400 / dpi)
+        # Use the dimensions already determined above (img_width, img_height)
+        img_width_px, img_height_px = img_width, img_height
+        # Convert pixels to EMUs (English Metric Units): 1 inch = 914400 EMUs, assume 96 DPI
+        dpi = 96
+        img_width_emu = int(img_width_px * 914400 / dpi)
+        img_height_emu = int(img_height_px * 914400 / dpi)
             
             # Get slide dimensions (standard is 10" x 7.5")
             slide_width = 9144000  # 10 inches in EMUs
