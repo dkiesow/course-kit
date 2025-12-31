@@ -518,16 +518,16 @@ def add_image_to_slide(slide, image_path, centered=False):
         # Use the image dimensions already determined above
         img_aspect = img_width / img_height
         ph_aspect = ph_width / ph_height
-            
-            # Calculate size to fit within placeholder while maintaining aspect ratio
-            if img_aspect > ph_aspect:
-                # Image is wider - constrain by width
-                new_width = ph_width
-                new_height = int(ph_width / img_aspect)
-            else:
-                # Image is taller - constrain by height
-                new_height = ph_height
-                new_width = int(ph_height * img_aspect)
+        
+        # Calculate size to fit within placeholder while maintaining aspect ratio
+        if img_aspect > ph_aspect:
+            # Image is wider - constrain by width
+            new_width = ph_width
+            new_height = int(ph_width / img_aspect)
+        else:
+            # Image is taller - constrain by height
+            new_height = ph_height
+            new_width = int(ph_height * img_aspect)
             
             # Center within placeholder
             left = ph_left + (ph_width - new_width) // 2
@@ -545,22 +545,22 @@ def add_image_to_slide(slide, image_path, centered=False):
         dpi = 96
         img_width_emu = int(img_width_px * 914400 / dpi)
         img_height_emu = int(img_height_px * 914400 / dpi)
-            
-            # Get slide dimensions (standard is 10" x 7.5")
-            slide_width = 9144000  # 10 inches in EMUs
-            slide_height = 6858000  # 7.5 inches in EMUs
-            
-            # Center the image
+        
+        # Get slide dimensions (standard is 10" x 7.5")
+        slide_width = 9144000  # 10 inches in EMUs
+        slide_height = 6858000  # 7.5 inches in EMUs
+        
+        # Center the image
+        left = (slide_width - img_width_emu) // 2
+        top = (slide_height - img_height_emu) // 2
+        
+        # Ensure image doesn't exceed slide bounds
+        if img_width_emu > slide_width or img_height_emu > slide_height:
+            # Scale down to fit
+            scale = min(slide_width / img_width_emu, slide_height / img_height_emu) * 0.9
+            img_width_emu = int(img_width_emu * scale)
+            img_height_emu = int(img_height_emu * scale)
             left = (slide_width - img_width_emu) // 2
             top = (slide_height - img_height_emu) // 2
-            
-            # Ensure image doesn't exceed slide bounds
-            if img_width_emu > slide_width or img_height_emu > slide_height:
-                # Scale down to fit
-                scale = min(slide_width / img_width_emu, slide_height / img_height_emu) * 0.9
-                img_width_emu = int(img_width_emu * scale)
-                img_height_emu = int(img_height_emu * scale)
-                left = (slide_width - img_width_emu) // 2
-                top = (slide_height - img_height_emu) // 2
         
         slide.shapes.add_picture(image_path, left, top, width=img_width_emu, height=img_height_emu)
