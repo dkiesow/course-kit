@@ -6,7 +6,7 @@ This replaces pandoc for PPTX generation.
 
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import PP_ALIGN, MSO_AUTO_SIZE
 import json
 import os
 
@@ -72,7 +72,7 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
     # Process each slide
     for slide_data in slides_data:
         (slide_class, headline, paragraph, bullets, quote, quote_citation, 
-         image_path, is_title, hide_headline, fullscreen, template_base) = slide_data
+         image_path, is_title, hide_headline, larger_image, fullscreen, template_base) = slide_data
         
         # Determine layout name directly from slide_class (no guessing)
         if is_title:
@@ -87,6 +87,11 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
                 layout_name = "White_Photo_Headline"
             elif template_key == 'gold-photo-centered' and not hide_headline:
                 layout_name = "Gold_Photo_Headline"
+            # For bullets-image-top templates, use big photo version if larger_image is True
+            elif template_key == 'bullets-image-top' and larger_image:
+                layout_name = "White_Top_Bullets_Big_Photo"
+            elif template_key == 'gold-bullets-image-top' and larger_image:
+                layout_name = "Gold_Top_Bullets_Big_Photo"
             
             if not layout_name:
                 print(f"Warning: No layout mapping for template '{template_key}'")
@@ -220,6 +225,7 @@ def populate_quote_slide(slide, quote, quote_citation):
                 continue
             
             text_frame = shape.text_frame
+            text_frame.word_wrap = True
             # Clear placeholder text but preserve formatting
             if text_frame.paragraphs:
                 text_frame.paragraphs[0].text = ""
@@ -354,6 +360,7 @@ def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide
     
     if content_shape and content_shape.has_text_frame:
         text_frame = content_shape.text_frame
+        text_frame.word_wrap = True
         
         # Clear placeholder text but preserve first paragraph's formatting
         if text_frame.paragraphs:
@@ -368,33 +375,69 @@ def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide
         if is_text_only and paragraph:
             add_formatted_text_to_frame(text_frame, paragraph)
             print(f"    Adding formatted paragraph text for text-only slide: {paragraph[:50]}...")
-        # For bullet slides, add bullets if present and not a text-only slide
-        elif bullets and not is_text_only:
-            try:
-                bullet_list = json.loads(bullets)
-                if bullet_list:  # Only add if list is not empty
-                    print(f"    Adding {len(bullet_list)} bullets")
-                    for i, bullet in enumerate(bullet_list):
-                        if i == 0:
-                            # Use first paragraph (preserves template formatting)
-                            p = text_frame.paragraphs[0]
-                        else:
-                            p = text_frame.add_paragraph()
-                        # Parse markdown formatting for bullet
-                        parse_markdown_to_paragraph(p, bullet)
-                        p.level = 0
-                elif paragraph:
-                    # Empty bullet list but has paragraph
-                    p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
-                    parse_markdown_to_paragraph(p, paragraph)
-                    # Explicitly disable bullets for paragraph text
-                    from lxml import etree
-                    buNone = etree.SubElement(p._element.get_or_add_pPr(), '{http://schemas.openxmlformats.org/drawingml/2006/main}buNone')
-            except:
-                # If JSON parsing fails, treat as plain text
-                text_frame.text = bullets
+        # For bullet slides, handle paragraph first, then bullets
+        elif not is_text_only:
+            paragraph_added = False
+            
+            # Add paragraph text first if present
+            if paragraph:
+                p = text_frame.paragraphs[0]
+                parse_markdown_to_paragraph(p, paragraph)
+                # Explicitly disable bullets for paragraph text
+                from lxml import etree
+                buNone = etree.SubElement(p._element.get_or_add_pPr(), '{http://schemas.openxmlformats.org/drawingml/2006/main}buNone')
+                paragraph_added = True
+                print(f"    Adding paragraph text: {paragraph[:50]}...")
+            
+            # Add bullets if present
+            if bullets:
+                try:
+                    bullet_list = json.loads(bullets)
+                    if bullet_list:  # Only add if list is not empty
+                        print(f"    Adding {len(bullet_list)} bullets")
+                        for i, bullet in enumerate(bullet_list):
+                            if i == 0 and not paragraph_added:
+                                # Use first paragraph if no paragraph text was added
+                                p = text_frame.paragraphs[0]
+                            else:
+                                p = text_frame.add_paragraph()
+                            
+                            # Detect indent level from markdown-style -- prefix OR leading spaces/tabs
+                            indent_level = 0
+                            stripped_bullet = bullet.lstrip()
+                            
+                            # Check for markdown -- prefix for indentation
+                            if stripped_bullet.startswith('--'):
+                                # Count consecutive - characters starting from 2 (-- = level 1)
+                                dash_count = len(stripped_bullet) - len(stripped_bullet.lstrip('-'))
+                                indent_level = max(0, dash_count - 1)  # -- is level 1, --- is level 2, etc.
+                                # Remove the - markers and any following space
+                                stripped_bullet = stripped_bullet.lstrip('-').lstrip()
+                            else:
+                                # Fall back to space/tab detection
+                                leading_whitespace = len(bullet) - len(stripped_bullet)
+                                
+                                # Calculate level: 2 spaces or 1 tab = 1 level
+                                if '\t' in bullet[:leading_whitespace]:
+                                    indent_level = bullet[:leading_whitespace].count('\t')
+                                else:
+                                    indent_level = leading_whitespace // 2
+                            
+                            # Cap at level 4 (PowerPoint supports up to 9 but 4 is reasonable)
+                            indent_level = min(indent_level, 4)
+                            
+                            # Parse markdown formatting for bullet (use stripped text)
+                            parse_markdown_to_paragraph(p, stripped_bullet)
+                            p.level = indent_level
+                except:
+                    # If JSON parsing fails, treat as plain text
+                    if not paragraph_added:
+                        text_frame.text = bullets
+                    else:
+                        p = text_frame.add_paragraph()
+                        p.text = bullets
         
-        # Add paragraph if present (and no bullets, and not already handled)
+        # Add paragraph if present (and no bullets handled above)
         elif paragraph:
             p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
             parse_markdown_to_paragraph(p, paragraph)

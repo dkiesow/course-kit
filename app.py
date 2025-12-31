@@ -112,6 +112,7 @@ def init_db():
                   order_index INTEGER,
                   is_title BOOLEAN DEFAULT 0,
                   hide_headline BOOLEAN DEFAULT 0,
+                  larger_image BOOLEAN DEFAULT 0,
                   has_bullets BOOLEAN DEFAULT 1,
                   has_image BOOLEAN DEFAULT 0,
                   has_quote BOOLEAN DEFAULT 0,
@@ -144,6 +145,7 @@ def init_db():
     # Backfill new columns for existing databases
     ensure_column('decks', 'notes', 'TEXT')
     ensure_column('slides', 'hide_headline', 'INTEGER DEFAULT 0')
+    ensure_column('slides', 'larger_image', 'INTEGER DEFAULT 0')
     ensure_column('slides', 'has_bullets', 'INTEGER DEFAULT 1')
     ensure_column('slides', 'has_image', 'INTEGER DEFAULT 0')
     ensure_column('slides', 'has_quote', 'INTEGER DEFAULT 0')
@@ -204,15 +206,15 @@ def presentation(presentation_id):
         for deck_row in c.fetchall():
             deck_id = deck_row[0]
             c.execute('''SELECT id, slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                        image_path, order_index, is_title, hide_headline, has_bullets, has_image, 
+                        image_path, order_index, is_title, hide_headline, larger_image, has_bullets, has_image, 
                         has_quote, is_gold, is_two_column, is_photo_centered, template_base, module, master_slide_id, fullscreen, is_draft FROM slides 
                         WHERE deck_id = ? ORDER BY order_index''', (deck_id,))
             slides = [{'id': s[0], 'slideClass': s[1], 'headline': s[2], 'paragraph': s[3], 
                       'bullets': json.loads(s[4]) if s[4] else [], 'quote': s[5], 
                       'quoteCitation': s[6], 'imagePath': s[7], 'orderIndex': s[8], 'isTitle': bool(s[9]),
-                      'hideHeadline': bool(s[10]), 'hasBullets': bool(s[11]), 'hasImage': bool(s[12]),
-                      'hasQuote': bool(s[13]), 'isGold': bool(s[14]), 'isTwoColumn': bool(s[15]),
-                      'isPhotoCentered': bool(s[16]), 'templateBase': s[17], 'module': s[18], 'masterSlideId': s[19], 'fullscreen': bool(s[20]), 'isDraft': bool(s[21])}
+                      'hideHeadline': bool(s[10]), 'largerImage': bool(s[11]), 'hasBullets': bool(s[12]), 'hasImage': bool(s[13]),
+                      'hasQuote': bool(s[14]), 'isGold': bool(s[15]), 'isTwoColumn': bool(s[16]),
+                      'isPhotoCentered': bool(s[17]), 'templateBase': s[18], 'module': s[19], 'masterSlideId': s[20], 'fullscreen': bool(s[21]), 'isDraft': bool(s[22])}
                      for s in c.fetchall()]
             decks.append({'id': deck_id, 'week': deck_row[1], 'date': deck_row[2], 
                          'orderIndex': deck_row[3], 'notes': deck_row[4], 'slides': slides})
@@ -310,17 +312,37 @@ def create_slide():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    # Get max order_index
-    c.execute('SELECT MAX(order_index) FROM slides WHERE deck_id = ?', (data['deck_id'],))
-    max_order = c.fetchone()[0] or -1
+    deck_id = data['deck_id']
+    insert_after_slide_id = data.get('insert_after_slide_id')
+    
+    if insert_after_slide_id:
+        # Get the order_index of the slide we're inserting after
+        c.execute('SELECT order_index FROM slides WHERE id = ?', (insert_after_slide_id,))
+        result = c.fetchone()
+        if result:
+            insert_after_order = result[0]
+            # Shift all slides after this position down by 1
+            c.execute('UPDATE slides SET order_index = order_index + 1 WHERE deck_id = ? AND order_index > ?',
+                     (deck_id, insert_after_order))
+            new_order_index = insert_after_order + 1
+        else:
+            # Fallback to end if slide not found
+            c.execute('SELECT MAX(order_index) FROM slides WHERE deck_id = ?', (deck_id,))
+            max_order = c.fetchone()[0] or -1
+            new_order_index = max_order + 1
+    else:
+        # Insert at end
+        c.execute('SELECT MAX(order_index) FROM slides WHERE deck_id = ?', (deck_id,))
+        max_order = c.fetchone()[0] or -1
+        new_order_index = max_order + 1
     
     c.execute('''INSERT INTO slides (deck_id, slide_class, headline, paragraph, bullets, 
                 quote, quote_citation, image_path, order_index, is_title, is_draft) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-             (data['deck_id'], data.get('class', ''), data.get('headline', ''),
+             (deck_id, data.get('class', ''), data.get('headline', ''),
               data.get('paragraph', ''), json.dumps(data.get('bullets', [])),
               data.get('quote', ''), data.get('quoteCitation', ''),
-              data.get('imagePath', ''), max_order + 1, data.get('isTitle', False), data.get('isDraft', False)))
+              data.get('imagePath', ''), new_order_index, data.get('isTitle', False), data.get('isDraft', False)))
     slide_id = c.lastrowid
     conn.commit()
     conn.close()
@@ -395,6 +417,9 @@ def slide(slide_id):
         if 'isDraft' in data:
             update_fields.append('is_draft = ?')
             update_values.append(1 if data.get('isDraft') else 0)
+        if 'largerImage' in data:
+            update_fields.append('larger_image = ?')
+            update_values.append(1 if data.get('largerImage') else 0)
         
         if update_fields:
             update_values.append(slide_id)
@@ -484,7 +509,7 @@ def insert_module(deck_id):
     
     # Get all slides from the module (masters)
     c.execute('''SELECT id, slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                 image_path, hide_headline, has_bullets, has_image, has_quote, is_gold, 
+                 image_path, hide_headline, larger_image, has_bullets, has_image, has_quote, is_gold, 
                  is_two_column, is_photo_centered, template_base, module, fullscreen 
                  FROM slides 
                  WHERE module = ? AND is_title = 0 AND master_slide_id IS NULL
@@ -526,13 +551,13 @@ def insert_module(deck_id):
         master_id = slide_data[0]
         c.execute('''INSERT INTO slides 
                      (deck_id, slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                      image_path, order_index, is_title, hide_headline, has_bullets, has_image, 
+                      image_path, order_index, is_title, hide_headline, larger_image, has_bullets, has_image, 
                       has_quote, is_gold, is_two_column, is_photo_centered, template_base, module, master_slide_id, fullscreen)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                   (deck_id, slide_data[1], slide_data[2], slide_data[3], slide_data[4], 
                    slide_data[5], slide_data[6], slide_data[7], start_order + idx, 
                    slide_data[8], slide_data[9], slide_data[10], slide_data[11], slide_data[12],
-                   slide_data[13], slide_data[14], slide_data[15], slide_data[16], master_id, slide_data[17]))
+                   slide_data[13], slide_data[14], slide_data[15], slide_data[16], slide_data[17], master_id, slide_data[18]))
         inserted_ids.append(c.lastrowid)
     
     conn.commit()
@@ -759,7 +784,7 @@ COURSE_TITLE: "Journalism Innovation"
         
         # Get all slides for this deck
         c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                            image_path, is_title, hide_headline, fullscreen, template_base
+                            image_path, is_title, hide_headline, larger_image, fullscreen, template_base
                      FROM slides 
                      WHERE deck_id = ?
                      ORDER BY order_index''', (deck_id,))
@@ -775,7 +800,7 @@ COURSE_TITLE: "Journalism Innovation"
         
         is_first_slide = True
         for slide in slides:
-            slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base = slide
+            slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, larger_image, fullscreen, template_base = slide
             
             # Apply assignment variable substitution
             if headline:
@@ -989,7 +1014,7 @@ COURSE_TITLE: "Journalism Innovation"
                 conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
                 c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                                    image_path, is_title, hide_headline, fullscreen, template_base
+                                    image_path, is_title, hide_headline, larger_image, fullscreen, template_base
                              FROM slides 
                              WHERE deck_id = ?
                              ORDER BY order_index''', (deck_id,))
@@ -998,7 +1023,7 @@ COURSE_TITLE: "Journalism Innovation"
                 # Apply assignment variable substitution to slides_data
                 processed_slides = []
                 for slide in slides_data:
-                    slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base = slide
+                    slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, larger_image, fullscreen, template_base = slide
                     
                     # Substitute assignment variables
                     if headline:
@@ -1016,7 +1041,7 @@ COURSE_TITLE: "Journalism Innovation"
                     if quote_citation:
                         quote_citation = substitute_assignment_variables(quote_citation, conn)
                     
-                    processed_slides.append((slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base))
+                    processed_slides.append((slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, larger_image, fullscreen, template_base))
                 
                 conn.close()
                 
@@ -1049,7 +1074,7 @@ COURSE_TITLE: "Journalism Innovation"
                 conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
                 c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                                    image_path, is_title, hide_headline, fullscreen, template_base
+                                    image_path, is_title, hide_headline, larger_image, fullscreen, template_base
                              FROM slides 
                              WHERE deck_id = ?
                              ORDER BY order_index''', (deck_id,))
@@ -1058,7 +1083,7 @@ COURSE_TITLE: "Journalism Innovation"
                 # Apply assignment variable substitution to slides_data
                 processed_slides = []
                 for slide in slides_data:
-                    slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base = slide
+                    slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, larger_image, fullscreen, template_base = slide
                     
                     # Substitute assignment variables
                     if headline:
@@ -1076,7 +1101,7 @@ COURSE_TITLE: "Journalism Innovation"
                     if quote_citation:
                         quote_citation = substitute_assignment_variables(quote_citation, conn)
                     
-                    processed_slides.append((slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, fullscreen, template_base))
+                    processed_slides.append((slide_class, headline, paragraph, bullets, quote, quote_citation, image_path, is_title, hide_headline, larger_image, fullscreen, template_base))
                 
                 conn.close()
                 
@@ -1180,7 +1205,7 @@ COURSE_TITLE: "Journalism Innovation"
         date = deck[2]
         
         c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                    image_path, is_title, hide_headline, fullscreen FROM slides WHERE deck_id = ? ORDER BY order_index''', 
+                    image_path, is_title, hide_headline, larger_image, fullscreen FROM slides WHERE deck_id = ? ORDER BY order_index''', 
                  (deck_id,))
         
         for slide in c.fetchall():
@@ -1193,7 +1218,8 @@ COURSE_TITLE: "Journalism Innovation"
             image_path = slide[6]
             is_title = slide[7]
             hide_headline = slide[8]
-            fullscreen = slide[9]
+            larger_image = slide[9]
+            fullscreen = slide[10]
             
             # Apply assignment variable substitution
             if headline:
@@ -1410,7 +1436,7 @@ COURSE_TITLE: "Journalism Innovation"
         date = deck[2]
         
         c.execute('''SELECT slide_class, headline, paragraph, bullets, quote, quote_citation, 
-                    image_path, is_title, hide_headline, fullscreen FROM slides WHERE deck_id = ? ORDER BY order_index''', 
+                    image_path, is_title, hide_headline, larger_image, fullscreen FROM slides WHERE deck_id = ? ORDER BY order_index''', 
                  (deck_id,))
         
         for slide in c.fetchall():
@@ -1423,7 +1449,8 @@ COURSE_TITLE: "Journalism Innovation"
             image_path = slide[6]
             is_title = slide[7]
             hide_headline = slide[8]
-            fullscreen = slide[9]
+            larger_image = slide[9]
+            fullscreen = slide[10]
             
             # Apply assignment variable substitution
             if headline:

@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Restart Flask App",
+			"type": "shell",
+			"command": "pkill -f 'python app.py' || true; lsof -ti:5001 | xargs kill -9 2>/dev/null || true; sleep 2; nohup /Users/kiesowd/.pyenv/shims/python app.py > app_output.log 2>&1 & echo 'Flask app started. Check app_output.log for logs.'",
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

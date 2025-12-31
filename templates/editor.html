@@ -77,9 +77,17 @@
             background: #f8f9fa;
             cursor: pointer;
             display: flex;
-            justify-content: space-between;
             align-items: center;
             user-select: none;
+        }
+        
+        .deck-number {
+            font-size: 24px;
+            font-weight: 500;
+            color: #666;
+            margin-right: 10px;
+            min-width: 24px;
+            text-align: center;
         }
         
         .deck-header:hover { background: #e9ecef; }
@@ -91,50 +99,9 @@
             flex: 1;
         }
         
-        .deck-export-btn {
-            padding: 4px 12px;
-            background: #0d6efd;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-right: 8px;
-            position: relative;
-        }
+
         
-        .deck-export-btn:hover {
-            background: #0b5ed7;
-        }
-        
-        .deck-export-dropdown {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            margin-top: 4px;
-            z-index: 1000;
-            min-width: 100px;
-        }
-        
-        .deck-export-dropdown.show {
-            display: block;
-        }
-        
-        .deck-export-option {
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 12px;
-            color: #333;
-        }
-        
-        .deck-export-option:hover {
-            background: #f8f9fa;
-        }
+
         
         .editor-export-btn {
             background: #fd7e14;
@@ -513,13 +480,48 @@
             font-size: 12px;
             color: #6c757d;
         }
+        
+        .search-container {
+            padding: 10px 16px;
+            border-bottom: 1px solid #e9ecef;
+            position: relative;
+        }
+        
+        .search-container input {
+            width: 100%;
+            padding: 8px 30px 8px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .search-clear {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #999;
+            display: none;
+        }
+        
+        .search-clear:hover {
+            color: #333;
+        }
+        
+        .slide-item.hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
     <div class="app">
         <div class="sidebar">
             <div class="sidebar-header">
-                <h1>📊 Presentation Editor <span onclick="showSettingsDialog()" style="cursor: pointer; font-size: 20px; margin-left: 8px;" title="Settings">⚙️</span></h1>
+                <h1>Presentation Editor <span onclick="showSettingsDialog()" style="cursor: pointer; font-size: 20px; margin-left: 8px;" title="Settings">⚙️</span></h1>
                 <div class="presentation-selector">
                     <select id="presentation-select" onchange="loadPresentation()">
                         <option value="">Select presentation...</option>
@@ -547,6 +549,10 @@
                 </div>
                 <button class="btn-new-deck" onclick="addNewDeck()">+ New Deck (Title Slide)</button>
             </div>
+            <div class="search-container">
+                <input type="text" id="slide-search" placeholder="Search slides..." onkeyup="filterSlides()" oninput="toggleClearButton()">
+                <button class="search-clear" id="search-clear" onclick="clearSearch()">&times;</button>
+            </div>
         </div>
         
         <div class="main-editor">
@@ -572,8 +578,8 @@
             const presentations = await response.json();
             
             const select = document.getElementById('presentation-select');
-            select.innerHTML = '<option value="">Select presentation...</option>' +
-                presentations.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            const options = presentations.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
+            select.innerHTML = '<option value="">Select presentation...</option>' + options;
         }
         
         // Load presentation
@@ -616,70 +622,186 @@
             list.innerHTML = currentPresentation.decks.map((deck, deckIndex) => {
                 // Count slides excluding title and closer
                 const contentSlideCount = deck.slides.filter(s => !s.isTitle && s.slideClass !== 'closing').length;
-                return `
-                <div class="deck expanded" id="deck-${deck.id}">
-                    <div class="deck-header">
-                        <div class="deck-title" onclick="toggleDeck(${deck.id})">${deck.week} - ${deck.date} (${contentSlideCount})</div>
-                        <div style="position: relative;">
-                            <button class="deck-export-btn" onclick="event.stopPropagation(); toggleExportDropdown(${deck.id})">
-                                Export
-                            </button>
-                            <div id="export-dropdown-${deck.id}" class="deck-export-dropdown">
-                                <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'pdf')">PDF</div>
-                                <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'pptx')">PowerPoint</div>
-                                <div class="deck-export-option" onclick="event.stopPropagation(); exportDeck(${deck.id}, 'odp')">OpenDocument</div>
-                            </div>
-                        </div>
-                        <div class="deck-toggle" onclick="toggleDeck(${deck.id})"></div>
-                    </div>
-                    <div class="deck-slides">
-                        ${deck.slides.map((slide, slideIndex) => `
-                            <div class="slide-item ${slide.isTitle ? 'title-slide' : ''} ${slide.isDraft ? 'draft' : ''} ${currentSlide && currentSlide.id === slide.id ? 'active' : ''}"
-                                 draggable="true"
-                                 data-slide-id="${slide.id}"
-                                 data-deck-id="${deck.id}"
-                                 ondragstart="handleDragStart(event)"
-                                 ondragover="handleDragOver(event)"
-                                 ondragenter="handleDragEnter(event)"
-                                 ondragleave="handleDragLeave(event)"
-                                 ondrop="handleDrop(event)"
-                                 ondragend="handleDragEnd(event)"
-                                 onclick="editSlide(${deck.id}, ${slide.id})">
-                                <div class="slide-item-title">
-                                    ${slide.masterSlideId ? '🔗 ' : ''}${slide.isTitle ? '📌 Title Slide' : (slide.headline || '(No headline)')}
-                                </div>
-                                <div class="slide-item-class">${slide.slideClass || 'no class'}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
+                
+                // Check if deck should be collapsed
+                const collapsedDecks = JSON.parse(localStorage.getItem('collapsedDecks') || '[]');
+                const isExpanded = !collapsedDecks.includes(deck.id);
+                
+                return '<div class="deck ' + (isExpanded ? 'expanded' : '') + '" id="deck-' + deck.id + '">' +
+                    '<div class="deck-header">' +
+                        '<div class="deck-number">' + (deckIndex + 1) + '</div>' +
+                        '<div class="deck-title" onclick="toggleDeck(' + deck.id + ')" style="flex: 1;">' +
+                            deck.week + '<br>' + deck.date + ' <span style="color: #999;">(' + contentSlideCount + ')</span>' +
+                        '</div>' +
+                        '<div class="deck-toggle" onclick="toggleDeck(' + deck.id + ')"></div>' +
+                    '</div>' +
+                    '<div class="deck-slides">' +
+                        deck.slides.map((slide, slideIndex) => 
+                            '<div class="slide-item ' + (slide.isTitle ? 'title-slide' : '') + ' ' + (slide.isDraft ? 'draft' : '') + ' ' + (currentSlide && currentSlide.id === slide.id ? 'active' : '') + '"' +
+                                 ' draggable="true"' +
+                                 ' data-slide-id="' + slide.id + '"' +
+                                 ' data-deck-id="' + deck.id + '"' +
+                                 ' ondragstart="handleDragStart(event)"' +
+                                 ' ondragover="handleDragOver(event)"' +
+                                 ' ondragenter="handleDragEnter(event)"' +
+                                 ' ondragleave="handleDragLeave(event)"' +
+                                 ' ondrop="handleDrop(event)"' +
+                                 ' ondragend="handleDragEnd(event)"' +
+                                 ' onclick="editSlide(' + deck.id + ', ' + slide.id + ')">' +
+                                '<div class="slide-item-title">' +
+                                    (slide.masterSlideId ? '🔗 ' : '') + (slide.isTitle ? '📌 Title Slide' : (slide.headline || '(No headline)')) +
+                                '</div>' +
+                                '<div class="slide-item-class">' + (slide.slideClass || 'no class') + '</div>' +
+                            '</div>'
+                        ).join('') +
+                    '</div>' +
+                '</div>';
             }).join('');
+            
+            // Apply current search filter if any
+            filterSlides();
+        }
+        
+        // Store previous deck states before search
+        let previousDeckStates = new Map();
+        
+        // Filter slides based on search term
+        function filterSlides() {
+            const searchTerm = document.getElementById('slide-search')?.value?.toLowerCase() || '';
+            
+            if (!searchTerm.trim()) {
+                // Show all slides if no search term
+                document.querySelectorAll('.slide-item').forEach(slide => {
+                    slide.classList.remove('hidden');
+                });
+                // Restore previous deck states
+                restoreDeckStates();
+                return;
+            }
+            
+            // Store current deck states before expanding
+            storeDeckStates();
+            
+            // Expand all decks when searching
+            document.querySelectorAll('.deck').forEach(deck => {
+                deck.classList.add('expanded');
+            });
+            
+            document.querySelectorAll('.slide-item').forEach(slide => {
+                const slideId = slide.getAttribute('data-slide-id');
+                const deckId = slide.getAttribute('data-deck-id');
+                
+                // Find slide data
+                let slideData = null;
+                if (currentPresentation && currentPresentation.decks) {
+                    for (const deck of currentPresentation.decks) {
+                        if (deck.id == deckId) {
+                            slideData = deck.slides.find(s => s.id == slideId);
+                            break;
+                        }
+                    }
+                }
+                
+                if (!slideData) {
+                    slide.classList.add('hidden');
+                    return;
+                }
+                
+                // Hide title slides (header slides with week/date) from search results
+                if (slideData.isTitle) {
+                    slide.classList.add('hidden');
+                    return;
+                }
+                
+                // Search in headline, paragraph, and bullets
+                const searchableText = [
+                    slideData.headline || '',
+                    slideData.paragraph || '',
+                    ...(slideData.bullets || [])
+                ].join(' ').toLowerCase();
+                
+                if (searchableText.includes(searchTerm)) {
+                    slide.classList.remove('hidden');
+                } else {
+                    slide.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Store current deck states
+        function storeDeckStates() {
+            if (previousDeckStates.size === 0) { // Only store if not already stored
+                document.querySelectorAll('.deck').forEach(deck => {
+                    const deckId = deck.id.replace('deck-', '');
+                    const isExpanded = deck.classList.contains('expanded');
+                    previousDeckStates.set(deckId, isExpanded);
+                });
+            }
+        }
+        
+        // Restore previous deck states
+        function restoreDeckStates() {
+            document.querySelectorAll('.deck').forEach(deck => {
+                const deckId = deck.id.replace('deck-', '');
+                const wasExpanded = previousDeckStates.get(deckId);
+                if (wasExpanded !== undefined) {
+                    if (wasExpanded) {
+                        deck.classList.add('expanded');
+                    } else {
+                        deck.classList.remove('expanded');
+                    }
+                }
+            });
+            previousDeckStates.clear();
+        }
+        
+        // Clear search and restore states
+        function clearSearch() {
+            document.getElementById('slide-search').value = '';
+            filterSlides();
+            toggleClearButton();
+        }
+        
+        // Toggle clear button visibility
+        function toggleClearButton() {
+            const searchInput = document.getElementById('slide-search');
+            const clearButton = document.getElementById('search-clear');
+            if (searchInput.value.trim()) {
+                clearButton.style.display = 'block';
+            } else {
+                clearButton.style.display = 'none';
+            }
         }
         
         // Toggle deck
         function toggleDeck(deckId) {
             const deck = document.getElementById(`deck-${deckId}`);
             deck.classList.toggle('expanded');
+            
+            // Save collapsed state to localStorage
+            const collapsedDecks = JSON.parse(localStorage.getItem('collapsedDecks') || '[]');
+            const index = collapsedDecks.indexOf(deckId);
+            
+            if (deck.classList.contains('expanded')) {
+                // Remove from collapsed list if it was there
+                if (index > -1) {
+                    collapsedDecks.splice(index, 1);
+                }
+            } else {
+                // Add to collapsed list if not already there
+                if (index === -1) {
+                    collapsedDecks.push(deckId);
+                }
+            }
+            
+            localStorage.setItem('collapsedDecks', JSON.stringify(collapsedDecks));
         }
         
-        function toggleExportDropdown(deckId) {
-            const dropdown = document.getElementById(`export-dropdown-${deckId}`);
-            // Close all other dropdowns
-            document.querySelectorAll('.deck-export-dropdown').forEach(d => {
-                if (d.id !== `export-dropdown-${deckId}`) {
-                    d.classList.remove('show');
-                }
-            });
-            dropdown.classList.toggle('show');
-        }
+
         
         // Close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.deck-export-btn') && !e.target.closest('.editor-export-btn')) {
-                document.querySelectorAll('.deck-export-dropdown').forEach(d => {
-                    d.classList.remove('show');
-                });
+            if (!e.target.closest('.editor-export-btn')) {
                 const editorDropdown = document.getElementById('editor-export-dropdown');
                 if (editorDropdown) {
                     editorDropdown.classList.remove('show');
@@ -810,17 +932,39 @@
             // Use current deck if available, otherwise use last deck
             const deckId = currentDeck ? currentDeck.id : currentPresentation.decks[currentPresentation.decks.length - 1].id;
             
-            await fetch('/api/slides', {
+            // Determine insert position - after current slide if one is selected, otherwise at end
+            let insertAfterSlideId = null;
+            if (currentSlide) {
+                insertAfterSlideId = currentSlide.id;
+            }
+            
+            const body = {
+                deck_id: deckId,
+                class: 'template-bullets',
+                headline: 'New Slide'
+            };
+            
+            if (insertAfterSlideId) {
+                body.insert_after_slide_id = insertAfterSlideId;
+            }
+            
+            const response = await fetch('/api/slides', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    deck_id: deckId,
-                    class: 'template-bullets',
-                    headline: 'New Slide'
-                })
+                body: JSON.stringify(body)
             });
             
+            const newSlide = await response.json();
             await loadPresentation();
+            
+            // Auto-select the newly created slide
+            if (newSlide && newSlide.id) {
+                const deck = currentPresentation.decks.find(d => d.id === deckId);
+                const slide = deck.slides.find(s => s.id === newSlide.id);
+                if (slide) {
+                    editSlide(deckId, newSlide.id);
+                }
+            }
         }
         
         // Edit slide
@@ -845,175 +989,148 @@
             let baseTemplate = slide.templateBase || 'bullets';
             let isGold = slide.isGold || false;
             
+            console.log('Loading slide:', slide.id, 'largerImage:', slide.largerImage);
+            
             const editorView = document.getElementById('editor-view');
-            editorView.innerHTML = `
-                <div class="editor-header">
-                    <div style="display: flex; align-items: center;">
-                        <h2>${isTitle ? '📌 Title Slide' : 'Edit Slide'}</h2>
-                        <span class="save-status" id="save-status"></span>
-                    </div>
-                    <div class="editor-actions">
-                        <button onclick="saveSlide()">💾 Save Now</button>
-                        ${isTitle ? '<button onclick="previewDeck()" style="background: #28a745;">👁️ Preview This Deck</button>' : ''}
-                        ${isTitle ? `
-                            <div style="display: inline-block; position: relative;">
-                                <button class="editor-export-btn" onclick="event.stopPropagation(); toggleEditorExport()">📥 Export Deck ▼</button>
-                                <div id="editor-export-dropdown" class="editor-export-dropdown">
-                                    <div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck('pdf')">PDF</div>
-                                    <div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck('pptx')">PowerPoint</div>
-                                    <div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck('odp')">OpenDocument</div>
-                                </div>
-                            </div>
-                        ` : ''}
-                        ${!isTitle ? '<button class="delete" onclick="deleteSlide()">🗑️ Delete</button>' : ''}
-                    </div>
-                </div>
-                <div class="editor-content">
-                    ${isTitle ? `
-                    <div class="form-group">
-                        <label>Week</label>
-                        <input type="text" id="deck-week" value="${currentDeck.week || ''}" placeholder="Week 1">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Date</label>
-                        <input type="text" id="deck-date" value="${currentDeck.date || ''}" placeholder="January 15, 2025">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Notes (not displayed on slides)</label>
-                        <textarea id="deck-notes" rows="6" placeholder="Add notes about this deck for reference...">${currentDeck.notes || ''}</textarea>
-                    </div>
-                    ` : `
-                    ${slide.masterSlideId ? `
-                    <div class="warning-banner">
-                        🔗 This is a linked slide. Changes will update all instances of this module across all decks.
-                    </div>
-                    ` : ''}
-                    <div class="form-group">
-                        <label>Template</label>
-                        <select id="slide-class" onchange="updateEditorFields()">
-                            <option value="bullets">Bullets</option>
-                            <option value="bullets-2col">Bullets Two-Column</option>
-                            <option value="bullets-image">Bullets with Image</option>
-                            <option value="bullets-image-top">Bullets Top / Image Bottom</option>
-                            <option value="lines">Lines / Text Only</option>
-                            <option value="bullets-image-split">Bullets with Image Split</option>
-                            <option value="quote">Quote</option>
-                            <option value="photo-centered">Photo Centered</option>
-                            <option value="closing">Closing</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="gold-background" onchange="handleGoldBackgroundChange()" style="width: auto; cursor: pointer;">
-                            <span>Gold Background</span>
-                        </label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="slide-draft" style="width: auto; cursor: pointer;">
-                            <span>Draft</span>
-                        </label>
-                    </div>
-                    
-                    <div class="form-group" id="hide-headline-group">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="hide-headline" style="width: auto; cursor: pointer;">
-                            <span>Hide Headline & HR</span>
-                        </label>
-                    </div>
-                    
-                    <div class="form-group" id="fullscreen-group">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="fullscreen" style="width: auto; cursor: pointer;">
-                            <span>Fullscreen Image</span>
-                        </label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Module (optional)</label>
-                        <input type="text" id="slide-module" value="${slide.module || ''}" placeholder="e.g., introduction, case-study">
-                    </div>
-                    
-                    <div class="form-group" style="background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e0e0e0;">
-                        <label style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleAssignmentsPanel()">
-                            <span>📚 Assignments</span>
-                            <span id="assignments-toggle" style="font-size: 12px; color: #666;">▼ Show</span>
-                        </label>
-                        <div id="assignments-panel" style="display: none; margin-top: 8px;">
-                            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                                Click an assignment to insert <code>{assignment:Name}</code> at cursor position
-                            </div>
-                            <div id="assignments-list-editor" style="max-height: 150px; overflow-y: auto;">
-                                <!-- Will be populated by JavaScript -->
-                            </div>
-                            <button onclick="showAddAssignmentForm()" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%;">
-                                + Add New Assignment
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>${baseTemplate === 'closing' ? 'Contact Info' : 'Headline'}</label>
-                        ${baseTemplate === 'closing' 
-                            ? `<textarea id="slide-headline" rows="5" style="font-family: monospace;">${slide.headline || ''}</textarea>`
-                            : `<input type="text" id="slide-headline" value="${slide.headline || ''}">`
-                        }
-                    </div>
-                    
-                    <div class="form-group" id="paragraph-group" style="display: ${isQuote ? 'none' : 'block'}">
-                        <label>${baseTemplate === 'closing' ? 'Bottom Text' : 'Non-bullet Text (optional)'}</label>
-                        ${baseTemplate !== 'closing' ? '<div style="font-size: 12px; color: #666; margin-bottom: 5px;">Supports Markdown: **bold**, *italic*, line breaks, etc.</div>' : ''}
-                        <textarea id="slide-paragraph" rows="3">${slide.paragraph || ''}</textarea>
-                    </div>
-                    
-                    <div class="form-group" id="bullets-group" style="display: ${isQuote ? 'none' : 'block'}">
-                        <label>Bullet Points</label>
-                        <div class="bullet-list" id="bullet-list">
-                            ${slide.bullets && slide.bullets.length > 0
-                                ? slide.bullets.map(bullet => `
-                                    <div class="bullet-item">
-                                        <input type="text" value="${bullet}">
-                                        <button onclick="removeBullet(this)">✕</button>
-                                    </div>
-                                `).join('')
-                                : `<div class="bullet-item">
-                                    <input type="text" placeholder="Enter bullet point">
-                                    <button onclick="removeBullet(this)">✕</button>
-                                </div>`
-                            }
-                        </div>
-                        <button class="add-bullet-btn" onclick="addBullet()">+ Add Bullet</button>
-                    </div>
-                    
-                    <div class="form-group" id="quote-group" style="display: ${isQuote ? 'block' : 'none'}">
-                        <label>Quote Text</label>
-                        <textarea id="slide-quote" rows="4">${slide.quote || ''}</textarea>
-                    </div>
-                    
-                    <div class="form-group" id="citation-group" style="display: ${isQuote ? 'block' : 'none'}">
-                        <label>Citation (optional)</label>
-                        <input type="text" id="slide-citation" value="${slide.quoteCitation || ''}" placeholder="Author Name, Year">
-                    </div>
-                    
-                    <div class="form-group" id="image-group" style="display: ${hasImage ? 'block' : 'none'}">
-                        <label>Image</label>
-                        <input type="hidden" id="slide-image" value="${slide.imagePath || ''}">
-                        <button type="button" onclick="document.getElementById('image-picker').click()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            Choose Image
-                        </button>
-                        <input type="file" id="image-picker" accept="image/*" style="display: none;" onchange="handleImageSelection(event)">
-                        <div id="image-preview" style="margin-top: 15px; display: ${slide.imagePath ? 'block' : 'none'};">
-                            <img src="${slide.imagePath || ''}" style="max-width: 100%; max-height: 300px; border: 1px solid #ddd; border-radius: 4px; display: block;" onerror="this.style.display='none'">
-                            <div style="margin-top: 8px; font-size: 12px; color: #666;" id="image-path-display">${slide.imagePath || ''}</div>
-                        </div>
-                    </div>
-                    `}
-                </div>
-            `;
+            editorView.innerHTML = '<div class="editor-header">' +
+                '<div style="display: flex; align-items: center;">' +
+                    '<h2>' + (isTitle ? '📌 Title Slide' : 'Edit Slide') + '</h2>' +
+                    '<span class="save-status" id="save-status"></span>' +
+                '</div>' +
+                '<div class="editor-actions">' +
+                    '<button onclick="saveSlide()">💾 Save Now</button>' +
+                    (isTitle ? '<button onclick="previewDeck()" style="background: #28a745;">👁️ Preview This Deck</button>' : '') +
+                    (isTitle ? '<div style="display: inline-block; position: relative;">' +
+                        '<button class="editor-export-btn" onclick="event.stopPropagation(); toggleEditorExport()">📥 Export Deck ▼</button>' +
+                        '<div id="editor-export-dropdown" class="editor-export-dropdown">' +
+                            '<div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck(\'pdf\')">PDF</div>' +
+                            '<div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck(\'pptx\')">PowerPoint</div>' +
+                            '<div class="editor-export-option" onclick="event.stopPropagation(); exportCurrentDeck(\'odp\')">LibreOffice</div>' +
+                        '</div>' +
+                    '</div>' : '') +
+                    (!isTitle ? '<button onclick="deleteSlide()" style="background: #dc3545;">🗑️ Delete</button>' : '') +
+                '</div>' +
+            '</div>' +
+            '<div class="editor-content">' +
+                (isTitle ? 
+                    '<div class="form-group">' +
+                        '<label>Week</label>' +
+                        '<input type="text" id="deck-week" value="' + (currentDeck.week || '') + '" placeholder="Week 1">' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Date</label>' +
+                        '<input type="text" id="deck-date" value="' + (currentDeck.date || '') + '" placeholder="January 15, 2025">' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Notes</label>' +
+                        '<textarea id="deck-notes" rows="6" placeholder="Add notes about this deck for reference...">' + (currentDeck.notes || '') + '</textarea>' +
+                    '</div>'
+                    :
+                    (slide.masterSlideId ? 
+                        '<div class="form-group" style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 15px;">' +
+                            '<div style="font-weight: bold; color: #1976d2;">🔗 Linked Slide</div>' +
+                            '<div style="font-size: 12px; color: #666;">This slide is linked to a master slide. Changes will be applied to all linked instances.</div>' +
+                        '</div>' : '') +
+                    '<div class="form-group">' +
+                        '<label>Class</label>' +
+                        '<select id="slide-class">' +
+                            '<option value="bullets"' + (baseTemplate === 'bullets' ? ' selected' : '') + '>Headlines and Bullet Points</option>' +
+                            '<option value="bullets-2col"' + (baseTemplate === 'bullets-2col' ? ' selected' : '') + '>Two-Column Bullets</option>' +
+                            '<option value="bullets-image"' + (baseTemplate === 'bullets-image' ? ' selected' : '') + '>Bullets with Right Image</option>' +
+                            '<option value="bullets-image-split"' + (baseTemplate === 'bullets-image-split' ? ' selected' : '') + '>Bullets + Image (Split)</option>' +
+                            '<option value="bullets-image-top"' + (baseTemplate === 'bullets-image-top' ? ' selected' : '') + '>Bullets Top / Image Bottom</option>' +
+                            '<option value="quote"' + (baseTemplate === 'quote' ? ' selected' : '') + '>Quote</option>' +
+                            '<option value="photo-centered"' + (baseTemplate === 'photo-centered' ? ' selected' : '') + '>Centered Photo</option>' +
+                            '<option value="lines"' + (baseTemplate === 'lines' ? ' selected' : '') + '>Text Lines (no bullets)</option>' +
+                            '<option value="closing"' + (baseTemplate === 'closing' ? ' selected' : '') + '>Closing Slide</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">' +
+                            '<input type="checkbox" id="gold-background" style="width: auto; cursor: pointer;"' + (isGold ? ' checked' : '') + '>' +
+                            '<span>Gold Background</span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="form-group" id="hide-headline-group">' +
+                        '<label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">' +
+                            '<input type="checkbox" id="hide-headline" style="width: auto; cursor: pointer;"' + (slide.hideHeadline ? ' checked' : '') + '>' +
+                            '<span>Hide Headline & HR</span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="form-group" id="larger-image-group">' +
+                        '<label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">' +
+                            '<input type="checkbox" id="larger-image" style="width: auto; cursor: pointer;"' + (slide.largerImage ? ' checked' : '') + '>' +
+                            '<span>Larger Image</span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="form-group" id="fullscreen-group">' +
+                        '<label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">' +
+                            '<input type="checkbox" id="fullscreen" style="width: auto; cursor: pointer;"' + (slide.fullscreen ? ' checked' : '') + '>' +
+                            '<span>Fullscreen Image</span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="form-group" id="module-group">' +
+                        '<label>Module (optional)</label>' +
+                        '<input type="text" id="slide-module" value="' + (slide.module || '') + '" placeholder="e.g., introduction, case-study">' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">' +
+                            '<input type="checkbox" id="slide-draft" style="width: auto; cursor: pointer;"' + (slide.isDraft ? ' checked' : '') + '>' +
+                            '<span>Draft</span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>' + (baseTemplate === 'closing' ? 'Contact Info' : 'Headline') + '</label>' +
+                        (baseTemplate === 'closing' ? 
+                            '<textarea id="slide-headline" rows="5" style="font-family: monospace;">' + (slide.headline || '') + '</textarea>' :
+                            '<input type="text" id="slide-headline" value="' + (slide.headline || '').replace(/"/g, '&quot;') + '">'
+                        ) +
+                    '</div>' +
+                    '<div class="form-group" id="paragraph-group" style="display: ' + (isQuote ? 'none' : 'block') + '">' +
+                        '<label>' + (baseTemplate === 'closing' ? 'Bottom Text' : 'Non-bullet Text (optional)') + '</label>' +
+                        (baseTemplate !== 'closing' ? '<div style="font-size: 12px; color: #666; margin-bottom: 5px;">Supports Markdown: **bold**, *italic*, line breaks, etc.</div>' : '') +
+                        '<textarea id="slide-paragraph" rows="3">' + (slide.paragraph || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>' +
+                    '</div>' +
+                    '<div class="form-group" id="bullets-group" style="display: ' + (isQuote ? 'none' : 'block') + '">' +
+                        '<label>Bullet Points</label>' +
+                        '<div class="bullet-list" id="bullet-list">' +
+                            (slide.bullets && slide.bullets.length > 0
+                                ? slide.bullets.map(function(bullet) { 
+                                    return '<div class="bullet-item">' +
+                                        '<input type="text" value="' + bullet.replace(/"/g, '&quot;') + '">' +
+                                        '<button onclick="removeBullet(this)">✕</button>' +
+                                    '</div>';
+                                }).join('')
+                                : '<div class="bullet-item">' +
+                                    '<input type="text" placeholder="Enter bullet point">' +
+                                    '<button onclick="removeBullet(this)">✕</button>' +
+                                '</div>'
+                            ) +
+                        '</div>' +
+                        '<button class="add-bullet-btn" onclick="addBullet()">+ Add Bullet</button>' +
+                    '</div>' +
+                    '<div class="form-group" id="quote-group" style="display: ' + (isQuote ? 'block' : 'none') + '">' +
+                        '<label>Quote Text</label>' +
+                        '<textarea id="slide-quote" rows="4">' + (slide.quote || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>' +
+                    '</div>' +
+                    '<div class="form-group" id="citation-group" style="display: ' + (isQuote ? 'block' : 'none') + '">' +
+                        '<label>Citation (optional)</label>' +
+                        '<input type="text" id="slide-citation" value="' + (slide.quoteCitation || '').replace(/"/g, '&quot;') + '" placeholder="Author Name, Year">' +
+                    '</div>' +
+                    '<div class="form-group" id="image-group" style="display: ' + (hasImage ? 'block' : 'none') + '">' +
+                        '<label>Image</label>' +
+                        '<input type="hidden" id="slide-image" value="' + (slide.imagePath || '').replace(/"/g, '&quot;') + '">' +
+                        '<button type="button" onclick="document.getElementById(\'image-picker\').click()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">' +
+                            'Choose Image' +
+                        '</button>' +
+                        '<input type="file" id="image-picker" accept="image/*" style="display: none;" onchange="handleImageSelection(event)">' +
+                        '<div id="image-preview" style="margin-top: 15px; display: ' + (slide.imagePath ? 'block' : 'none') + ';">' +
+                            '<img src="' + (slide.imagePath || '').replace(/"/g, '&quot;') + '" style="max-width: 100%; max-height: 300px; border: 1px solid #ddd; border-radius: 4px; display: block;" onerror="this.style.display=\'none\'">' +
+                            '<div style="margin-top: 8px; font-size: 12px; color: #666;" id="image-path-display">' + (slide.imagePath || '') + '</div>' +
+                        '</div>' +
+                    '</div>'
+                ) +
+            '</div>';
             
             // Add auto-save event listeners after render
             setTimeout(() => {
@@ -1026,6 +1143,7 @@
                     const classSelect = document.getElementById('slide-class');
                     const goldCheckbox = document.getElementById('gold-background');
                     const hideHeadlineCheckbox = document.getElementById('hide-headline');
+                    const largerImageCheckbox = document.getElementById('larger-image');
                     const fullscreenCheckbox = document.getElementById('fullscreen');
                     const draftCheckbox = document.getElementById('slide-draft');
                     
@@ -1043,6 +1161,9 @@
                             hideHeadlineCheckbox.checked = slide.hideHeadline || false;
                         }
                     }
+                    if (largerImageCheckbox) {
+                        largerImageCheckbox.checked = slide.largerImage || false;
+                    }
                     if (fullscreenCheckbox) {
                         fullscreenCheckbox.checked = slide.fullscreen || false;
                     }
@@ -1050,9 +1171,12 @@
                         draftCheckbox.checked = slide.isDraft || false;
                     }
                     
+                    console.log('HTML content set, now setting up event handlers');
+                    
                     document.getElementById('slide-class')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('gold-background')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('hide-headline')?.addEventListener('change', triggerAutoSave);
+                    document.getElementById('larger-image')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('fullscreen')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('slide-draft')?.addEventListener('change', triggerAutoSave);
                     document.getElementById('slide-module')?.addEventListener('input', triggerAutoSave);
@@ -1061,12 +1185,31 @@
                     document.getElementById('slide-quote')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('slide-citation')?.addEventListener('input', triggerAutoSave);
                     
-                    // Bullet inputs
-                    document.querySelectorAll('#bullet-list input').forEach(input => {
-                        input.addEventListener('input', triggerAutoSave);
-                        input.addEventListener('paste', handleBulletPaste);
-                    });
+                    // Use event delegation for bullet inputs - attach to the container
+                    const bulletList = document.getElementById('bullet-list');
+                    
+                    if (bulletList) {
+                        // Remove any existing listeners to avoid duplicates
+                        bulletList.removeEventListener('paste', handleBulletListPaste, true);
+                        bulletList.removeEventListener('input', handleBulletListInput, true);
+                        bulletList.removeEventListener('keydown', handleBulletListKeydown, true);
+                        
+                        // Add event listeners with delegation
+                        bulletList.addEventListener('paste', handleBulletListPaste, true);
+                        bulletList.addEventListener('input', handleBulletListInput, true);
+                        bulletList.addEventListener('keydown', handleBulletListKeydown, true);
+                    }
                 }
+            }, 100);
+            
+            // Add essential event listeners
+            setTimeout(() => {
+                document.getElementById('slide-class')?.addEventListener('change', updateEditorFields);
+                document.getElementById('gold-background')?.addEventListener('change', () => saveSlide(false));
+                document.getElementById('hide-headline')?.addEventListener('change', () => saveSlide(false));
+                document.getElementById('larger-image')?.addEventListener('change', () => saveSlide(false));
+                document.getElementById('fullscreen')?.addEventListener('change', () => saveSlide(false));
+                document.getElementById('slide-draft')?.addEventListener('change', () => saveSlide(false));
             }, 100);
         }
         
@@ -1095,6 +1238,8 @@
             document.getElementById('citation-group').style.display = isQuote ? 'block' : 'none';
             document.getElementById('image-group').style.display = hasImage ? 'block' : 'none';
             document.getElementById('hide-headline-group').style.display = isPhotoCentered ? 'block' : 'none';
+            const isBulletsImageTop = templateBase === 'bullets-image-top';
+            document.getElementById('larger-image-group').style.display = isBulletsImageTop ? 'block' : 'none';
         }
         
         function handleGoldBackgroundChange() {
@@ -1140,6 +1285,25 @@
             pathDisplay.textContent = imagePath;
         }
         
+        // Event delegation handlers for bullet list
+        function handleBulletListPaste(event) {
+            if (event.target.tagName === 'INPUT' && event.target.closest('#bullet-list')) {
+                handleBulletPaste(event);
+            }
+        }
+        
+        function handleBulletListInput(event) {
+            if (event.target.tagName === 'INPUT' && event.target.closest('#bullet-list')) {
+                triggerAutoSave();
+            }
+        }
+        
+        function handleBulletListKeydown(event) {
+            if (event.target.tagName === 'INPUT' && event.target.closest('#bullet-list')) {
+                handleBulletTabKey(event);
+            }
+        }
+        
         function addBullet() {
             const bulletList = document.getElementById('bullet-list');
             const bulletItem = document.createElement('div');
@@ -1150,14 +1314,43 @@
             `;
             bulletList.appendChild(bulletItem);
             
-            // Add paste handler to new input
+            // Add all necessary event handlers to new input
             const input = bulletItem.querySelector('input');
             input.addEventListener('paste', handleBulletPaste);
+            input.addEventListener('keydown', handleBulletTabKey);
+            input.addEventListener('input', triggerAutoSave);
+        }
+        
+        function handleBulletTabKey(event) {
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                const input = event.target;
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                
+                // Insert two spaces at cursor position
+                const spaces = '  ';
+                input.value = input.value.substring(0, start) + spaces + input.value.substring(end);
+                
+                // Move cursor after the inserted spaces
+                input.selectionStart = input.selectionEnd = start + spaces.length;
+                
+                // Trigger auto-save
+                triggerAutoSave();
+            }
         }
         
         function handleBulletPaste(event) {
             const pastedText = event.clipboardData.getData('text');
-            const lines = pastedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            
+            const lines = pastedText.split('\n').map(line => {
+                // Remove common bullet prefixes and trim
+                let cleaned = line.trimEnd();
+                // Remove bullet prefixes like -, *, •, numbers followed by ., etc.
+                cleaned = cleaned.replace(/^[\s]*[-*•]\s*/, '');
+                cleaned = cleaned.replace(/^[\s]*\d+\.\s*/, '');
+                return cleaned;
+            }).filter(line => line.trim().length > 0);
             
             // If multiple lines were pasted, create separate bullets
             if (lines.length > 1) {
@@ -1183,6 +1376,7 @@
                     // Add paste handler to new input
                     const newInput = bulletItem.querySelector('input');
                     newInput.addEventListener('paste', handleBulletPaste);
+                    newInput.addEventListener('keydown', handleBulletTabKey);
                     newInput.addEventListener('input', triggerAutoSave);
                 });
                 
@@ -1225,8 +1419,8 @@
                 // Regular slide save
                 const bulletInputs = document.querySelectorAll('#bullet-list input');
                 const bullets = Array.from(bulletInputs)
-                    .map(input => input.value.trim())
-                    .filter(bullet => bullet !== '');
+                    .map(input => input.value.trimEnd())
+                    .filter(bullet => bullet.trim() !== '');
                 
                 const templateBase = document.getElementById('slide-class').value;
                 const isGold = document.getElementById('gold-background')?.checked || false;
@@ -1248,9 +1442,14 @@
                     quoteCitation: document.getElementById('slide-citation')?.value || '',
                     imagePath: document.getElementById('slide-image')?.value || '',
                     hideHeadline: document.getElementById('hide-headline')?.checked || false,
+                    largerImage: document.getElementById('larger-image')?.checked || false,
                     fullscreen: document.getElementById('fullscreen')?.checked || false,
                     isDraft: document.getElementById('slide-draft')?.checked || false
                 };
+                
+                console.log('Saving slide data:', data);
+                console.log('largerImage checkbox state:', document.getElementById('larger-image')?.checked);
+                console.log('largerImage in data:', data.largerImage);
                 
                 await fetch(`/api/slides/${currentSlide.id}`, {
                     method: 'PUT',
@@ -1539,12 +1738,12 @@
             const modal = document.getElementById('insert-module-modal');
             const moduleList = document.getElementById('module-list');
             
-            moduleList.innerHTML = modules.map(m => `
-                <div class="module-item" data-module="${m.name}" onclick="selectModule('${m.name}')">
-                    <span>${m.name}</span>
-                    <span class="module-count">${m.slideCount} slides</span>
-                </div>
-            `).join('');
+            moduleList.innerHTML = modules.map(m => 
+                '<div class="module-item" data-module="' + m.name.replace(/"/g, '&quot;') + '" onclick="selectModule(\'' + m.name.replace(/'/g, '\\\&apos;') + '\')">' +
+                    '<span>' + m.name + '</span>' +
+                    '<span class="module-count">' + m.slideCount + ' slides</span>' +
+                '</div>'
+            ).join('');
             
             modal.classList.add('active');
         }
@@ -1594,18 +1793,18 @@
                 return;
             }
             
-            listEl.innerHTML = assignments.map(a => `
-                <div class="assignment-item" data-assignment-name="${a.name}" data-assignment-id="${a.id}"
-                     style="padding: 8px; margin-bottom: 4px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
-                     onmouseover="this.style.background='#e3f2fd'" 
-                     onmouseout="this.style.background='white'">
-                    <div style="flex: 1;">
-                        <div style="font-size: 13px; font-weight: 500;">${a.name}</div>
-                        <div style="font-size: 11px; color: #666;">Due: ${a.dueDate}</div>
-                    </div>
-                    <button class="delete-assignment-btn" data-assignment-id="${a.id}" style="padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">×</button>
-                </div>
-            `).join('');
+            listEl.innerHTML = assignments.map(a => 
+                '<div class="assignment-item" data-assignment-name="' + a.name.replace(/"/g, '&quot;') + '" data-assignment-id="' + a.id + '"' +
+                     ' style="padding: 8px; margin-bottom: 4px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;"' +
+                     ' onmouseover="this.style.background=\'#e3f2fd\'"' +
+                     ' onmouseout="this.style.background=\'white\'">' +
+                    '<div style="flex: 1;">' +
+                        '<div style="font-size: 13px; font-weight: 500;">' + a.name + '</div>' +
+                        '<div style="font-size: 11px; color: #666;">Due: ' + a.dueDate + '</div>' +
+                    '</div>' +
+                    '<button class="delete-assignment-btn" data-assignment-id="' + a.id + '" style="padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">×</button>' +
+                '</div>'
+            ).join('');
             
             // Add click listeners
             document.querySelectorAll('.assignment-item').forEach(item => {

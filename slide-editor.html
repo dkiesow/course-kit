@@ -197,6 +197,35 @@
             font-size: 13px;
             color: #666;
         }
+
+        .template-row {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .template-select-container {
+            flex: 1;
+        }
+
+        .draft-checkbox-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+        }
+
+        .draft-checkbox-container input[type="checkbox"] {
+            width: auto;
+            margin-top: 5px;
+        }
+
+        .two-column-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -208,25 +237,41 @@
                 Create slides for your Marp presentation. Fill in the fields below and click "Generate Markdown" to create the slide code.
             </div>
 
-            <div class="form-group">
-                <label for="template">Template</label>
-                <select id="template">
-                    <option value="template-bullets">Bullets (White)</option>
-                    <option value="template-bullets-2col">Bullets Two-Column (White)</option>
-                    <option value="template-bullets-image">Bullets with Image (White)</option>
-                    <option value="gold-bullets">Bullets (Gold)</option>
-                    <option value="gold-bullets-2col">Bullets Two-Column (Gold)</option>
-                    <option value="gold-bullets-image">Bullets with Image (Gold)</option>
-                    <option value="gold-bullets-image-split">Bullets with Image Split (Gold/White)</option>
-                    <option value="template-quote-headline">Quote with Headline (White)</option>
-                    <option value="gold-quote-headline">Quote with Headline (Gold)</option>
-                    <option value="agenda">Agenda</option>
-                </select>
+            <div class="form-group template-row">
+                <div class="template-select-container">
+                    <label for="template">Template</label>
+                    <select id="template">
+                        <option value="template-bullets">Bullets (White)</option>
+                        <option value="template-bullets-2col">Bullets Two-Column (White)</option>
+                        <option value="template-bullets-image">Bullets with Image (White)</option>
+                        <option value="gold-bullets">Bullets (Gold)</option>
+                        <option value="gold-bullets-2col">Bullets Two-Column (Gold)</option>
+                        <option value="gold-bullets-image">Bullets with Image (Gold)</option>
+                        <option value="gold-bullets-image-split">Bullets with Image Split (Gold/White)</option>
+                        <option value="template-quote-headline">Quote with Headline (White)</option>
+                        <option value="gold-quote-headline">Quote with Headline (Gold)</option>
+                        <option value="agenda">Agenda</option>
+                    </select>
+                </div>
+                <div class="draft-checkbox-container">
+                    <label for="draft">Draft</label>
+                    <input type="checkbox" id="draft">
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="headline">Headline</label>
-                <input type="text" id="headline" placeholder="Enter slide headline">
+            <div class="two-column-controls">
+                <div class="form-group">
+                    <label for="headline">Headline</label>
+                    <input type="text" id="headline" placeholder="Enter slide headline">
+                </div>
+
+                <div class="form-group" id="image-group" style="display: none;">
+                    <label for="image-path">Image Path</label>
+                    <input type="text" id="image-path" placeholder="assets/image.jpg">
+                    <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                        Path relative to presentation.md
+                    </small>
+                </div>
             </div>
 
             <div class="form-group" id="paragraph-group">
@@ -251,22 +296,16 @@
                 </div>
             </div>
 
-            <div class="form-group" id="quote-group" style="display: none;">
-                <label for="quote">Quote Text</label>
-                <textarea id="quote" rows="4" placeholder="Enter quote text"></textarea>
-            </div>
+            <div class="two-column-controls">
+                <div class="form-group" id="quote-group" style="display: none;">
+                    <label for="quote">Quote Text</label>
+                    <textarea id="quote" rows="4" placeholder="Enter quote text"></textarea>
+                </div>
 
-            <div class="form-group" id="quote-citation-group" style="display: none;">
-                <label for="quote-citation">Citation (optional)</label>
-                <input type="text" id="quote-citation" placeholder="— Author Name">
-            </div>
-
-            <div class="form-group" id="image-group" style="display: none;">
-                <label for="image-path">Image Path</label>
-                <input type="text" id="image-path" placeholder="assets/image.jpg">
-                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
-                    Path relative to presentation.md
-                </small>
+                <div class="form-group" id="quote-citation-group" style="display: none;">
+                    <label for="quote-citation">Citation (optional)</label>
+                    <input type="text" id="quote-citation" placeholder="— Author Name">
+                </div>
             </div>
 
             <div class="button-group">
