@@ -591,6 +591,40 @@
             
             const response = await fetch(`/api/presentations/${presentationId}`);
             currentPresentation = await response.json();
+            
+            // Sort decks chronologically by date
+            if (currentPresentation && currentPresentation.decks) {
+                currentPresentation.decks.sort((a, b) => {
+                    // Parse dates - handle various formats
+                    const parseDate = (dateStr) => {
+                        if (!dateStr) return new Date(0); // Invalid dates go to beginning
+                        
+                        // Try to parse common formats: MM/DD/YY, MM/DD/YYYY, M/D/YY, etc.
+                        const cleaned = dateStr.replace(/[^\d\/]/g, ''); // Remove non-digits except /
+                        const parts = cleaned.split('/');
+                        
+                        if (parts.length === 3) {
+                            let [month, day, year] = parts.map(p => parseInt(p, 10));
+                            
+                            // Handle 2-digit years (assume 20xx for years < 50, 19xx for >= 50)
+                            if (year < 100) {
+                                year += year < 50 ? 2000 : 1900;
+                            }
+                            
+                            return new Date(year, month - 1, day); // month is 0-indexed
+                        }
+                        
+                        // Fallback: try direct parsing
+                        const parsed = new Date(dateStr);
+                        return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+                    };
+                    
+                    const dateA = parseDate(a.date);
+                    const dateB = parseDate(b.date);
+                    return dateA.getTime() - dateB.getTime();
+                });
+            }
+            
             renderDecks();
             
             // Start periodic .md export (every 60 seconds)
@@ -619,6 +653,7 @@
                 return;
             }
             
+            // Use the already chronologically-sorted decks from loadPresentation
             list.innerHTML = currentPresentation.decks.map((deck, deckIndex) => {
                 // Count slides excluding title and closer
                 const contentSlideCount = deck.slides.filter(s => !s.isTitle && s.slideClass !== 'closing').length;
@@ -929,8 +964,9 @@
                 return;
             }
             
-            // Use current deck if available, otherwise use last deck
-            const deckId = currentDeck ? currentDeck.id : currentPresentation.decks[currentPresentation.decks.length - 1].id;
+            // Use current deck if available, otherwise use chronologically latest deck
+            const deckId = currentDeck ? currentDeck.id : 
+                currentPresentation.decks[currentPresentation.decks.length - 1].id; // Since decks are sorted by date, last one is latest
             
             // Determine insert position - after current slide if one is selected, otherwise at end
             let insertAfterSlideId = null;
