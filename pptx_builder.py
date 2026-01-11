@@ -88,6 +88,13 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
         else:
             # Use slide_class if it exists, otherwise template_base
             template_key = slide_class if slide_class else template_base
+            
+            # For bullets-image-top templates with fullscreen, switch to full-photo-headline
+            if template_key == 'bullets-image-top' and fullscreen:
+                template_key = 'full-photo-headline'
+            elif template_key == 'gold-bullets-image-top' and fullscreen:
+                template_key = 'gold-full-photo-headline'
+            
             layout_name = pptx_layouts_map.get(template_key)
             
             # For photo-centered templates, use headline version if hide_headline is False
@@ -117,13 +124,13 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
         # Populate placeholders based on slide type
         if is_title:
             populate_title_slide(slide, headline, paragraph, deck_info)
-        elif template_base == "closing":
+        elif template_key == "closing":
             populate_closing_slide(slide, headline, paragraph, image_path)
-        elif template_base in ["photo-centered", "gold-photo-centered"]:
-            populate_photo_slide(slide, image_path, headline, hide_headline)
-        elif template_base in ["quote", "gold-quote"]:
+        elif template_key in ["photo-centered", "gold-photo-centered", "full-photo-headline", "gold-full-photo-headline"]:
+            populate_photo_slide(slide, image_path, headline, hide_headline, paragraph, bullets)
+        elif template_key in ["quote", "gold-quote"]:
             populate_quote_slide(slide, quote, quote_citation)
-        elif template_base in ["bullets-image", "bullets-image-split", "bullets-image-top", "gold-bullets-image-split", "gold-bullets-image-top"]:
+        elif template_key in ["bullets-image", "bullets-image-split", "bullets-image-top", "gold-bullets-image-split", "gold-bullets-image-top"]:
             # Image layouts - add image
             populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class)
         else:
@@ -305,8 +312,15 @@ def populate_closing_slide(slide, headline, paragraph, image_path):
         add_image_to_slide(slide, image_path)
 
 
-def populate_photo_slide(slide, image_path, headline=None, hide_headline=True):
-    """Populate photo-centered slide with large image and optional headline."""
+def populate_photo_slide(slide, image_path, headline=None, hide_headline=True, paragraph=None, bullets=None):
+    """Populate photo-centered slide with large image and optional headline and text."""
+    # Debug: print all placeholders in this slide
+    print(f"  populate_photo_slide - slide placeholders:")
+    for shape in slide.shapes:
+        if shape.is_placeholder:
+            ph_type = shape.placeholder_format.type
+            print(f"    Placeholder type {ph_type}: {shape.name}")
+    
     # Add headline if not hidden
     if headline and not hide_headline:
         title_shape = None
@@ -321,6 +335,60 @@ def populate_photo_slide(slide, image_path, headline=None, hide_headline=True):
             tf = title_shape.text_frame
             tf.paragraphs[0].text = ""
             parse_markdown_to_paragraph(tf.paragraphs[0], headline)
+    
+    # Add paragraph/bullets to body placeholder if present
+    if paragraph or bullets:
+        body_shape = None
+        for shape in slide.shapes:
+            if shape.is_placeholder and shape.has_text_frame:
+                ph_type = shape.placeholder_format.type
+                if ph_type in [2, 7, 14]:  # Body, Object, or Content placeholder
+                    body_shape = shape
+                    break
+        
+        if body_shape and body_shape.has_text_frame:
+            text_frame = body_shape.text_frame
+            text_frame.word_wrap = True
+            
+            # Clear placeholder text
+            if text_frame.paragraphs:
+                text_frame.paragraphs[0].text = ""
+                while len(text_frame.paragraphs) > 1:
+                    elem = text_frame.paragraphs[1]._element
+                    elem.getparent().remove(elem)
+            
+            # Add paragraph first if present
+            if paragraph:
+                p = text_frame.paragraphs[0]
+                parse_markdown_to_paragraph(p, paragraph)
+                # Disable bullets for paragraph text
+                from lxml import etree
+                pPr = p._element.get_or_add_pPr()
+                # Remove any existing bullet formatting
+                for buNone in pPr.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}buNone'):
+                    buNone.getparent().remove(buNone)
+                for buAutoNum in pPr.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}buAutoNum'):
+                    buAutoNum.getparent().remove(buAutoNum)
+                for buChar in pPr.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}buChar'):
+                    buChar.getparent().remove(buChar)
+                # Add buNone to explicitly disable bullets
+                etree.SubElement(pPr, '{http://schemas.openxmlformats.org/drawingml/2006/main}buNone')
+            
+            # Add bullets if present
+            if bullets:
+                import sys
+                print(f"    populate_photo_slide bullets: {repr(bullets)}", file=sys.stderr, flush=True)
+                for i, bullet in enumerate(bullets):
+                    # Skip empty bullets or bracket artifacts
+                    if not bullet or bullet.strip() in ['[', ']', '[]']:
+                        print(f"    Skipping bullet: {repr(bullet)}", file=sys.stderr, flush=True)
+                        continue
+                    if i == 0 and not paragraph:
+                        p = text_frame.paragraphs[0]
+                    else:
+                        p = text_frame.add_paragraph()
+                    p.text = bullet
+                    p.level = 0
     
     # Add image
     if image_path:
@@ -504,8 +572,12 @@ def add_image_to_slide(slide, image_path, centered=False):
     for shape in slide.shapes:
         if shape.is_placeholder:
             ph_type = shape.placeholder_format.type
+            # Debug output
+            import sys
+            print(f"    Found placeholder: type={ph_type}, name={shape.name}", file=sys.stderr, flush=True)
             if ph_type == 18:  # Picture placeholder
                 picture_placeholder = shape
+                print(f"    -> Using this as picture placeholder!", file=sys.stderr, flush=True)
                 break
     
     if picture_placeholder:
@@ -514,6 +586,11 @@ def add_image_to_slide(slide, image_path, centered=False):
         ph_height = picture_placeholder.height
         ph_left = picture_placeholder.left
         ph_top = picture_placeholder.top
+        
+        import sys
+        print(f"    Picture placeholder dimensions: width={ph_width/914400:.2f}in, height={ph_height/914400:.2f}in", file=sys.stderr, flush=True)
+        print(f"    Picture placeholder position: left={ph_left/914400:.2f}in, top={ph_top/914400:.2f}in", file=sys.stderr, flush=True)
+        print(f"    Image dimensions: {img_width}x{img_height} pixels", file=sys.stderr, flush=True)
         
         # Use the image dimensions already determined above
         img_aspect = img_width / img_height
@@ -529,6 +606,8 @@ def add_image_to_slide(slide, image_path, centered=False):
             new_height = ph_height
             new_width = int(ph_height * img_aspect)
         
+        print(f"    Calculated image size: width={new_width/914400:.2f}in, height={new_height/914400:.2f}in", file=sys.stderr, flush=True)
+        
         # Center within placeholder
         left = ph_left + (ph_width - new_width) // 2
         top = ph_top + (ph_height - new_height) // 2
@@ -536,7 +615,11 @@ def add_image_to_slide(slide, image_path, centered=False):
         # Remove the placeholder and add image in its place
         sp = picture_placeholder.element
         sp.getparent().remove(sp)
-        slide.shapes.add_picture(image_path, left, top, width=new_width, height=new_height)
+        pic = slide.shapes.add_picture(image_path, left, top, width=new_width, height=new_height)
+        
+        # Send image to back so it doesn't cover text
+        slide.shapes._spTree.remove(pic._element)
+        slide.shapes._spTree.insert(2, pic._element)
     else:
         # No placeholder - add at native size, centered on slide
         # Use the dimensions already determined above (img_width, img_height)
