@@ -1,5 +1,7 @@
 {
   "markdown.marp.themes": [
     "/Users/kiesowd/slides-marp/marp-theme-shim.css"
-  ]
+  ],
+  "editor.allowVariableFonts": false,
+  "editor.autoIndentOnPaste": true
 }

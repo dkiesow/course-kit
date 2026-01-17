@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Assignment Manager</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+        .config-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 14px;
+        }
+        input[type="text"], input[type="password"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        .assignment-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .assignment-item {
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #fafafa;
+        }
+        .assignment-item:hover {
+            background: #f0f0f0;
+        }
+        .assignment-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .assignment-meta {
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .linked {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+        .linked .assignment-name::after {
+            content: " ✓";
+            color: #4caf50;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .actions button {
+            flex: 1;
+            padding: 8px;
+            font-size: 13px;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Canvas Assignment Manager</h1>
+        
+        <div class="config-section">
+            <div class="form-group">
+                <label for="canvas_url">Canvas URL</label>
+                <input type="text" id="canvas_url" placeholder="https://canvas.instructure.com">
+            </div>
+            <div class="form-group">
+                <label for="api_key">API Key</label>
+                <input type="password" id="api_key" placeholder="Your Canvas API token">
+            </div>
+            <div class="form-group">
+                <label for="course_id">Course ID</label>
+                <input type="text" id="course_id" placeholder="12345">
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button onclick="saveConfig()">Save Configuration</button>
+            <button onclick="fetchCanvasAssignments()" class="btn-success">Fetch Canvas Assignments</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <div class="content">
+        <div class="panel">
+            <h2>App Assignments</h2>
+            <div id="app-assignments" class="assignment-list">
+                <div class="loading">Loading assignments...</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Canvas Assignments</h2>
+            <div id="canvas-assignments" class="assignment-list">
+                <div class="loading">Configure Canvas and click "Fetch Canvas Assignments"</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let appAssignments = [];
+        let canvasAssignments = [];
+
+        // Load config and app assignments on page load
+        window.onload = async () => {
+            await loadConfig();
+            await loadAppAssignments();
+        };
+
+        async function loadConfig() {
+            const response = await fetch('/canvas/config');
+            const config = await response.json();
+            document.getElementById('canvas_url').value = config.canvas_url || '';
+            document.getElementById('api_key').value = config.api_key || '';
+            document.getElementById('course_id').value = config.course_id || '';
+        }
+
+        async function saveConfig() {
+            const config = {
+                canvas_url: document.getElementById('canvas_url').value,
+                api_key: document.getElementById('api_key').value,
+                course_id: document.getElementById('course_id').value
+            };
+
+            const response = await fetch('/canvas/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                showStatus('Configuration saved', 'success');
+            } else {
+                showStatus('Failed to save configuration', 'error');
+            }
+        }
+
+        async function loadAppAssignments() {
+            const response = await fetch('/canvas/assignments');
+            appAssignments = await response.json();
+            console.log('Loaded app assignments:', appAssignments.length);
+            renderAppAssignments();
+        }
+
+        function renderAppAssignments() {
+            const container = document.getElementById('app-assignments');
+            console.log('Rendering', appAssignments.length, 'app assignments');
+            console.log('Canvas assignments available:', canvasAssignments.length);
+            container.innerHTML = appAssignments.map(a => `
+                <div class="assignment-item ${a.canvas_assignment_id ? 'linked' : ''}">
+                    <div class="assignment-name">${a.name}</div>
+                    <div class="assignment-meta">
+                        <span>Due: ${a.due_date || 'No date'}</span>
+                        <span>${a.short || ''}</span>
+                    </div>
+                    ${!a.canvas_assignment_id ? `
+                        <select id="canvas-select-${a.id}" onchange="linkAssignment(${a.id})">
+                            <option value="">Link to Canvas assignment...</option>
+                            ${canvasAssignments.map(ca => 
+                                `<option value="${ca.id}">${ca.name}</option>`
+                            ).join('')}
+                        </select>
+                    ` : `
+                        <div class="actions">
+                            <button onclick="syncAssignment(${a.id}, false)" class="btn-secondary">
+                                Sync Due Date
+                            </button>
+                            <button onclick="syncAssignment(${a.id}, true)" class="btn-success">
+                                Sync Name & Date
+                            </button>
+                        </div>
+                    `}
+                </div>
+            `).join('');
+        }
+
+        async function fetchCanvasAssignments() {
+            const config = {
+                canvas_url: document.getElementById('canvas_url').value,
+                api_key: document.getElementById('api_key').value,
+                course_id: document.getElementById('course_id').value
+            };
+
+            if (!config.canvas_url || !config.api_key || !config.course_id) {
+                showStatus('Please fill in all Canvas configuration fields', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/canvas/fetch-assignments', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error);
+                }
+
+                canvasAssignments = await response.json();
+                console.log('Fetched Canvas assignments:', canvasAssignments.length);
+                renderCanvasAssignments();
+                renderAppAssignments(); // Re-render to show dropdowns
+                showStatus(`Fetched ${canvasAssignments.length} assignments from Canvas`, 'success');
+            } catch (error) {
+                showStatus('Error fetching Canvas assignments: ' + error.message, 'error');
+            }
+        }
+
+        function renderCanvasAssignments() {
+            const container = document.getElementById('canvas-assignments');
+            container.innerHTML = canvasAssignments.map(a => `
+                <div class="assignment-item">
+                    <div class="assignment-name">${a.name}</div>
+                    <div class="assignment-meta">
+                        <span>Due: ${a.due_at ? new Date(a.due_at).toLocaleDateString() : 'No date'}</span>
+                        <span>${a.points_possible} pts</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function linkAssignment(appAssignmentId) {
+            const select = document.getElementById(`canvas-select-${appAssignmentId}`);
+            const canvasAssignmentId = select.value;
+
+            if (!canvasAssignmentId) return;
+
+            try {
+                const response = await fetch('/canvas/link-assignment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        app_assignment_id: appAssignmentId,
+                        canvas_assignment_id: canvasAssignmentId
+                    })
+                });
+
+                if (response.ok) {
+                    showStatus('Assignment linked successfully', 'success');
+                    await loadAppAssignments();
+                } else {
+                    showStatus('Failed to link assignment', 'error');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function syncAssignment(appAssignmentId, updateName) {
+            try {
+                const response = await fetch('/canvas/sync-assignment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        app_assignment_id: appAssignmentId,
+                        update_name: updateName,
+                        update_due_date: true
+                    })
+                });
+
+                if (response.ok) {
+                    showStatus(`Assignment synced to Canvas successfully`, 'success');
+                } else {
+                    const error = await response.json();
+                    showStatus('Failed to sync: ' + error.error, 'error');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            setTimeout(() => {
+                status.className = 'status';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

@@ -71,8 +71,8 @@ def add_body_placeholder_to_layout(layout, master):
     print(f"    Added body placeholder: left={left}, top={top}, width={width}, height={height}")
 
 def main():
-    template_path = '4734_template.potx'
-    output_path = '4734_template_fixed.potx'
+    template_path = 'templates/4734_template.potx'
+    output_path = 'templates/4734_template_fixed.potx'
     
     print(f"Fixing template: {template_path}")
     

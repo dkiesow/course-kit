@@ -11,11 +11,11 @@ import os
 import tempfile
 
 def fix_gold_layout_backgrounds():
-    template_path = '4734_template.potx'
-    fixed_template_path = '4734_template_fixed.potx'
+    template_path = 'templates/4734_template.potx'
+    fixed_template_path = 'templates/4734_template_fixed.potx'
     
     # Create a backup
-    shutil.copy(template_path, '4734_template_backup.potx')
+    shutil.copy(template_path, 'templates/4734_template_backup.potx')
     
     # Work with a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:

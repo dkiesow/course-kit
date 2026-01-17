@@ -2,7 +2,7 @@ from pptx import Presentation
 import zipfile, shutil, os
 
 # Copy and convert POTX to PPTX
-shutil.copy2('4734_template.potx', 'temp_check.pptx')
+shutil.copy2('templates/4734_template.potx', 'temp_check.pptx')
 z = zipfile.ZipFile('temp_check.pptx', 'r')
 files = {n: z.read(n) for n in z.namelist()}
 z.close()

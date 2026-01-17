@@ -10,8 +10,8 @@ import tempfile
 import re
 
 def fix_closing_and_gold_bullets():
-    template_path = '4734_template.potx'
-    fixed_template_path = '4734_template_final_fix.potx'
+    template_path = 'templates/4734_template.potx'
+    fixed_template_path = 'templates/4734_template_final_fix.potx'
     
     # Work with a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:

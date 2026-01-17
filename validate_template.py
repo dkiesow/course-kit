@@ -8,7 +8,7 @@ import zipfile
 import tempfile
 
 def validate_template_xml():
-    template_path = '4734_template.potx'
+    template_path = 'templates/4734_template.potx'
     
     print("=== VALIDATING TEMPLATE XML ===")
     

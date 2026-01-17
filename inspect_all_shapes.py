@@ -23,7 +23,7 @@ def convert_potx_to_pptx(potx_path):
     return tmp_path
 
 # Load template
-template_path = '/Users/kiesowd/slides-marp/4734_template.potx'
+template_path = 'templates/4734_template.potx'
 tmp_pptx = convert_potx_to_pptx(template_path)
 
 try:

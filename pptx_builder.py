@@ -9,6 +9,14 @@ from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN, MSO_AUTO_SIZE
 import json
 import os
+import sys
+import tempfile
+import shutil
+import zipfile
+import xml.etree.ElementTree as ET
+
+# Threshold (in bytes) above which animated GIFs are converted to PNG fallbacks
+GIF_FALLBACK_THRESHOLD = 5 * 1024 * 1024  # 5 MB
 
 
 def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts_map, deck_info=None):
@@ -89,6 +97,9 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
             # Use slide_class if it exists, otherwise template_base
             template_key = slide_class if slide_class else template_base
             
+            import sys
+            print(f"  Slide template_key: {template_key}, quote: {repr(quote[:50] if quote else None)}, image_path: {repr(image_path)}", file=sys.stderr, flush=True)
+            
             # For bullets-image-top templates with fullscreen, switch to full-photo-headline
             if template_key == 'bullets-image-top' and fullscreen:
                 template_key = 'full-photo-headline'
@@ -126,19 +137,26 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
             populate_title_slide(slide, headline, paragraph, deck_info)
         elif template_key == "closing":
             populate_closing_slide(slide, headline, paragraph, image_path)
-        elif template_key in ["photo-centered", "gold-photo-centered", "full-photo-headline", "gold-full-photo-headline"]:
-            populate_photo_slide(slide, image_path, headline, hide_headline, paragraph, bullets)
-        elif template_key in ["quote", "gold-quote"]:
+        elif template_key in ["photo-centered", "gold-photo-centered", "full-photo-headline", "gold-full-photo-headline", 
+                              "template-photo-centered", "template-gold-photo-centered", "template-full-photo-headline", "template-gold-full-photo-headline"]:
+            populate_photo_slide(slide, image_path, headline, hide_headline, paragraph, bullets, larger_image, prs)
+        elif template_key in ["quote", "gold-quote", "template-quote", "template-gold-quote"]:
             populate_quote_slide(slide, quote, quote_citation)
-        elif template_key in ["bullets-image", "bullets-image-split", "bullets-image-top", "gold-bullets-image-split", "gold-bullets-image-top"]:
+        elif template_key in ["bullets-image", "bullets-image-split", "bullets-image-top", "gold-bullets-image-split", "gold-bullets-image-top",
+                              "template-bullets-image", "template-bullets-image-split", "template-bullets-image-top", "template-gold-bullets-image-split", "template-gold-bullets-image-top"]:
             # Image layouts - add image
-            populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class)
+            populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class, larger_image, prs)
         else:
             # Regular content - no image unless it's explicitly an image layout
-            populate_content_slide(slide, headline, paragraph, bullets, None, hide_headline, slide_class)
+            populate_content_slide(slide, headline, paragraph, bullets, None, hide_headline, slide_class, larger_image, prs)
     
     # Save the presentation
     prs.save(output_path)
+    # Normalize PPTX docProps (populate Slides/Words/etc) to keep document metadata accurate
+    try:
+        normalize_pptx(output_path)
+    except Exception:
+        pass
     return True
 
 
@@ -174,15 +192,22 @@ def parse_markdown_to_paragraph(paragraph, text):
     """Parse markdown formatting and add runs to paragraph."""
     import re
     
-    # Pattern to match **bold** and *italic* markdown
-    pattern = r'(\*\*.*?\*\*|\*.*?\*|[^*]+|\*)'
-    parts = re.findall(pattern, text)
+    # Pattern to match **bold**, *italic*, and `code` markdown
+    # Match in order: code, bold, italic, or regular text
+    # Use DOTALL flag so . matches newlines
+    pattern = r'(`[^`]+`|\*\*[\s\S]*?\*\*|\*[\s\S]*?\*|[^*`]+|[*`])'
+    parts = re.findall(pattern, text, re.DOTALL)
     
     for part in parts:
         if not part:
             continue
             
-        if part.startswith('**') and part.endswith('**') and len(part) > 4:
+        if part.startswith('`') and part.endswith('`') and len(part) > 2:
+            # Inline code
+            run = paragraph.add_run()
+            run.text = part[1:-1]  # Remove ` markers
+            run.font.name = 'Courier New'
+        elif part.startswith('**') and part.endswith('**') and len(part) > 4:
             # Bold text
             run = paragraph.add_run()
             run.text = part[2:-2]  # Remove ** markers
@@ -196,6 +221,187 @@ def parse_markdown_to_paragraph(paragraph, text):
             # Regular text
             run = paragraph.add_run()
             run.text = part
+
+
+def remove_empty_body_placeholders(slide):
+    """Remove empty content/body placeholders from a slide.
+    Returns a list of (placeholder_type, name) removed for debugging."""
+    removed = []
+    # Iterate a copy because we'll be removing shapes from the tree
+    for shape in list(slide.shapes):
+        if not getattr(shape, 'is_placeholder', False):
+            continue
+        try:
+            ph_type = shape.placeholder_format.type
+        except Exception:
+            continue
+        # Consider Body, Object, and Content placeholders
+        if ph_type in [2, 7, 14] and getattr(shape, 'has_text_frame', False):
+            txt = shape.text or ''
+            if txt.strip() == '':
+                try:
+                    slide.shapes._spTree.remove(shape._element)
+                    removed.append((ph_type, getattr(shape, 'name', None)))
+                except Exception:
+                    pass
+    return removed
+
+
+# --- PPTX normalization helpers (used by tests) ---
+
+def _reorder_content_types(ct_bytes, files=None):
+    """Reorder overrides in a [Content_Types].xml blob so that docProps entries occur
+    before the presentation part. Returns a bytes object with the updated XML.
+    """
+    try:
+        root = ET.fromstring(ct_bytes.decode('utf-8'))
+    except Exception:
+        return ct_bytes
+    ns = root.tag.split('}')[0].strip('{')
+    overrides = list(root.findall(f'{{{ns}}}Override'))
+
+    others = []
+    docprops = []
+    presentation = []
+
+    for o in overrides:
+        pn = o.attrib.get('PartName')
+        if pn and pn.startswith('/docProps/'):
+            docprops.append(o)
+        elif pn == '/ppt/presentation.xml':
+            presentation.append(o)
+        else:
+            others.append(o)
+
+    # Remove existing override elements
+    for o in overrides:
+        root.remove(o)
+
+    # Append in the order: others, docprops, presentation
+    for o in others + docprops + presentation:
+        root.append(o)
+
+    return ET.tostring(root, encoding='utf-8', xml_declaration=True)
+
+
+def _normalize_slide_paragraph_pPr(files):
+    """Ensure every paragraph (<a:p>) in slide XML has a <a:pPr> child.
+    Modifies and returns a new files dict with updated slide XML where needed.
+    """
+    new_files = dict(files)
+    for name, data in list(files.items()):
+        if not name.startswith('ppt/slides/') or not name.endswith('.xml'):
+            continue
+        try:
+            root = ET.fromstring(data)
+        except Exception:
+            continue
+
+        changed = False
+        # Find txBody elements and ensure each <a:p> contains <a:pPr>
+        for el in root.iter():
+            if el.tag.split('}', 1)[-1] == 'txBody':
+                # iterate direct children paragraphs under txBody
+                for p in el.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}p'):
+                    # check for pPr child
+                    if not any(ch.tag.split('}', 1)[-1] == 'pPr' for ch in list(p)):
+                        pPr = ET.Element('{http://schemas.openxmlformats.org/drawingml/2006/main}pPr')
+                        p.insert(0, pPr)
+                        changed = True
+        if changed:
+            new_files[name] = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+    return new_files
+
+
+def _compute_layout_master_overlap_subtract(files, used_layout_names, used_master_files):
+    """Compute a small subtraction factor based on textual overlap between layouts and masters.
+    Simple heuristic used in tests: count occurrences of a token like 'alpha' and compute min(layout_count, master_count) // 4.
+    """
+    layout_count = 0
+    for path, data in files.items():
+        if path.startswith('ppt/slideLayouts/'):
+            s = data.decode('utf-8', errors='ignore')
+            for lname in used_layout_names:
+                if f'name="{lname}"' in s:
+                    layout_count += s.count('alpha')
+    master_count = 0
+    for m in used_master_files:
+        if m in files:
+            master_count += files[m].decode('utf-8', errors='ignore').count('alpha')
+
+    overlap = min(layout_count, master_count)
+    return overlap // 4
+
+
+def normalize_pptx(pptx_path):
+    """Normalize a PPTX file by populating docProps (Words, Paragraphs, Slides, TitlesOfParts).
+    This mutates the PPTX in place.
+    """
+    try:
+        prs = Presentation(pptx_path)
+    except Exception:
+        return
+
+    # Compute counts
+    slide_count = len(prs.slides)
+    words = 0
+    paragraphs = 0
+    titles = []
+    for slide in prs.slides:
+        # collect title if present
+        try:
+            if slide.shapes.title and slide.shapes.title.has_text_frame:
+                t = slide.shapes.title.text.strip()
+                if t:
+                    titles.append(t)
+        except Exception:
+            pass
+        for shape in slide.shapes:
+            if getattr(shape, 'has_text_frame', False):
+                try:
+                    text = shape.text or ''
+                    words += len(text.split())
+                    paragraphs += len(shape.text_frame.paragraphs)
+                except Exception:
+                    pass
+
+    # Build app.xml content
+    ns = 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties'
+    ET.register_namespace('', ns)
+    props = ET.Element(f'{{{ns}}}Properties')
+    app = ET.SubElement(props, f'{{{ns}}}Application')
+    app.text = 'python-pptx'
+    w = ET.SubElement(props, f'{{{ns}}}Words')
+    w.text = str(words)
+    p = ET.SubElement(props, f'{{{ns}}}Paragraphs')
+    p.text = str(paragraphs)
+    s = ET.SubElement(props, f'{{{ns}}}Slides')
+    s.text = str(slide_count)
+    tops = ET.SubElement(props, f'{{{ns}}}TitlesOfParts')
+    for t in titles:
+        te = ET.SubElement(tops, f'{{{ns}}}t')
+        te.text = t
+
+    new_app_xml = ET.tostring(props, encoding='utf-8', xml_declaration=True)
+
+    # Read and rewrite ZIP with updated docProps/app.xml
+    tmpfd, tmpname = tempfile.mkstemp(suffix='.pptx')
+    os.close(tmpfd)
+    try:
+        with zipfile.ZipFile(pptx_path, 'r') as zin, zipfile.ZipFile(tmpname, 'w', zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                data = zin.read(item.filename)
+                if item.filename == 'docProps/app.xml':
+                    zout.writestr(item, new_app_xml)
+                else:
+                    zout.writestr(item, data)
+        shutil.move(tmpname, pptx_path)
+    except Exception:
+        try:
+            os.remove(tmpname)
+        except Exception:
+            pass
+    return
 
 
 def populate_title_slide(slide, headline, paragraph, deck_info=None):
@@ -232,6 +438,9 @@ def populate_title_slide(slide, headline, paragraph, deck_info=None):
 
 def populate_quote_slide(slide, quote, quote_citation):
     """Populate quote slide with quote text and citation."""
+    import sys
+    print(f"  populate_quote_slide - quote: {repr(quote)}, citation: {repr(quote_citation)}", file=sys.stderr, flush=True)
+    
     # Find text placeholders - skip title placeholder (idx 0), use content placeholder
     for shape in slide.shapes:
         if shape.has_text_frame:
@@ -309,11 +518,33 @@ def populate_closing_slide(slide, headline, paragraph, image_path):
     
     # Add image if present
     if image_path:
-        add_image_to_slide(slide, image_path)
+        _pic, _ph = add_image_to_slide(slide, image_path)  # placeholder info unused for closing slide
 
 
-def populate_photo_slide(slide, image_path, headline=None, hide_headline=True, paragraph=None, bullets=None):
-    """Populate photo-centered slide with large image and optional headline and text."""
+def populate_photo_slide(slide, image_path, headline=None, hide_headline=True, paragraph=None, bullets=None, larger_image=False, prs=None):
+    """Populate photo-centered slide with large image and optional headline and text.
+
+    Args:
+        slide: Slide object
+        image_path: Path to image
+        headline: Optional headline text
+        hide_headline: If True, headline is not rendered
+        paragraph: Optional paragraph text
+        bullets: Optional bullets list
+        larger_image: If True, attempt to scale the added image to occupy most of the slide
+        prs: Optional Presentation object to read slide width/height from (used for scaling)
+    """
+    """Populate photo-centered slide with large image and optional headline and text.
+
+    Args:
+        slide: Slide object
+        image_path: Path to image
+        headline: Optional headline text
+        hide_headline: If True, headline is not rendered
+        paragraph: Optional paragraph text
+        bullets: Optional bullets list
+        larger_image: If True, attempt to scale the added image to occupy most of the slide
+    """
     # Debug: print all placeholders in this slide
     print(f"  populate_photo_slide - slide placeholders:")
     for shape in slide.shapes:
@@ -391,12 +622,77 @@ def populate_photo_slide(slide, image_path, headline=None, hide_headline=True, p
                     p.level = 0
     
     # Add image
+    pic = None
+    ph_bounds = None
     if image_path:
-        add_image_to_slide(slide, image_path, centered=True)
+        pic, ph_bounds = add_image_to_slide(slide, image_path, centered=True)
+
+    # If this slide requested a larger image, scale up the picture we just added
+    try:
+        if pic is not None and larger_image:
+            # Determine slide dimensions (prefer presentation object if passed in)
+            if prs is not None:
+                slide_width = prs.slide_width
+                slide_height = prs.slide_height
+            else:
+                slide_width = 9144000
+                slide_height = 6858000
+
+            margin = Inches(1)
+
+            # Determine bounding box to constrain the scaled image
+            if ph_bounds:
+                b_left = ph_bounds['left']
+                b_top = ph_bounds['top']
+                b_width = ph_bounds['width']
+                b_height = ph_bounds['height']
+            else:
+                b_left = int(margin)
+                b_top = int(margin)
+                b_width = slide_width - (margin * 2)
+                b_height = slide_height - (margin * 2)
+
+            # Compute scaled size to fit within bounding box while preserving aspect ratio
+            img_aspect = pic.width / pic.height if pic.height else 1
+            target_width = b_width
+            target_height = int(target_width / img_aspect)
+            if target_height > b_height:
+                target_height = int(b_height)
+                target_width = int(target_height * img_aspect)
+
+            pic.width = int(target_width)
+            pic.height = int(target_height)
+
+            # Center within bounding box (horizontal and vertical)
+            pic.left = int(b_left + (b_width - pic.width) // 2)
+            pic.top = int(b_top + (b_height - pic.height) // 2)
+
+            print(f"    Scaled picture for larger_image: width={pic.width/914400:.2f}in height={pic.height/914400:.2f}in", file=sys.stderr)
+    except Exception as e:
+        print(f"    Error scaling pic for larger_image: {e}", file=sys.stderr)
+
+    # Remove empty body/content placeholders to avoid empty text boxes showing in PowerPoint
+    removed = remove_empty_body_placeholders(slide)
+    if removed:
+        print(f"    Removed empty placeholders: {removed}")
 
 
-def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class=None):
-    """Populate standard content slide with headline, text, bullets, and optional image."""
+def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide_headline, slide_class=None, larger_image=False, prs=None):
+    """Populate standard content slide with headline, text, bullets, and optional image.
+
+    Args:
+        slide: Slide object
+        headline: Headline text
+        paragraph: Paragraph text
+        bullets: Bullet list (JSON string or plain text)
+        image_path: Optional path to image
+        hide_headline: Whether to hide the headline
+        slide_class: Optional slide class hint
+        larger_image: If True, attempt to scale inserted image to occupy more slide area
+        prs: Optional Presentation object used to get slide dimensions for scaling
+    """
+    print(f"  populate_content_slide - image_path: {repr(image_path)}, hide_headline: {hide_headline}, larger_image: {larger_image}, prs_present: {prs is not None}", file=sys.stderr, flush=True)
+    
     # Determine if this is a text-only slide
     is_text_only = slide_class and 'lines' in slide_class
     
@@ -528,8 +824,59 @@ def populate_content_slide(slide, headline, paragraph, bullets, image_path, hide
                 print(f"  Type: {shape.placeholder_format.type}, Has text frame: {shape.has_text_frame}")
     
     # Add image if present
+    pic = None
+    ph_bounds = None
     if image_path:
-        add_image_to_slide(slide, image_path)
+        pic, ph_bounds = add_image_to_slide(slide, image_path)
+
+    # If this slide requested a larger image, scale up the picture we just added
+    try:
+        if pic is not None and larger_image:
+            # Determine slide dimensions (prefer presentation object if passed in)
+            if prs is not None:
+                slide_width = prs.slide_width
+                slide_height = prs.slide_height
+            else:
+                slide_width = 9144000
+                slide_height = 6858000
+
+            margin = Inches(1)
+
+            # Determine bounding box to constrain the scaled image
+            if ph_bounds:
+                b_left = ph_bounds['left']
+                b_top = ph_bounds['top']
+                b_width = ph_bounds['width']
+                b_height = ph_bounds['height']
+            else:
+                b_left = int(margin)
+                b_top = int(margin)
+                b_width = slide_width - (margin * 2)
+                b_height = slide_height - (margin * 2)
+
+            # Compute scaled size to fit within bounding box while preserving aspect ratio
+            img_aspect = pic.width / pic.height if pic.height else 1
+            target_width = b_width
+            target_height = int(target_width / img_aspect)
+            if target_height > b_height:
+                target_height = int(b_height)
+                target_width = int(target_height * img_aspect)
+
+            pic.width = int(target_width)
+            pic.height = int(target_height)
+
+            # Center within bounding box (horizontal and vertical)
+            pic.left = int(b_left + (b_width - pic.width) // 2)
+            pic.top = int(b_top + (b_height - pic.height) // 2)
+
+            print(f"    Scaled picture for larger_image: width={pic.width/914400:.2f}in height={pic.height/914400:.2f}in", file=sys.stderr)
+    except Exception as e:
+        print(f"    Error scaling pic for larger_image: {e}", file=sys.stderr)
+
+    # Remove empty body/content placeholders so empty text placeholders don't render
+    removed = remove_empty_body_placeholders(slide)
+    if removed:
+        print(f"    Removed empty placeholders: {removed}")
 
 
 def add_image_to_slide(slide, image_path, centered=False):
@@ -551,12 +898,29 @@ def add_image_to_slide(slide, image_path, centered=False):
     
     # Get image dimensions - handle GIFs specially to preserve animation
     if image_path.lower().endswith('.gif'):
-        # For GIFs, use a simpler approach to avoid PIL processing that might strip animation
+        # For GIFs, either preserve animation for small files or use a PNG fallback for large GIFs
         try:
             from PIL import Image
-            with Image.open(image_path) as img:
-                img_width, img_height = img.size
-                # Don't process the image further - let python-pptx handle it directly
+            gif_size = os.path.getsize(image_path)
+            if gif_size > GIF_FALLBACK_THRESHOLD:
+                # Convert first frame to PNG fallback to avoid embedding huge animated GIFs
+                try:
+                    with Image.open(image_path) as img:
+                        img.seek(0)
+                        fallback = tempfile.NamedTemporaryFile(delete=False, suffix='.png', prefix='pptx_gif_fallback_')
+                        fallback_path = fallback.name
+                        fallback.close()
+                        img.convert('RGBA').save(fallback_path, 'PNG')
+                        image_path = fallback_path
+                        # Update dimensions from the generated PNG
+                        with Image.open(fallback_path) as pf:
+                            img_width, img_height = pf.size
+                except Exception as e:
+                    print(f"Warning: Could not create PNG fallback for GIF: {e}")
+                    img_width, img_height = 800, 600
+            else:
+                with Image.open(image_path) as img:
+                    img_width, img_height = img.size
         except Exception as e:
             print(f"Warning: Could not read GIF dimensions: {e}")
             # Use default dimensions if we can't read the file
@@ -620,30 +984,98 @@ def add_image_to_slide(slide, image_path, centered=False):
         # Send image to back so it doesn't cover text
         slide.shapes._spTree.remove(pic._element)
         slide.shapes._spTree.insert(2, pic._element)
+        # Clean up any temporary fallback PNG we created for GIFs
+        try:
+            if 'fallback_path' in locals() and fallback_path:
+                os.remove(fallback_path)
+        except Exception:
+            pass
+        return pic, {'left': ph_left, 'top': ph_top, 'width': ph_width, 'height': ph_height}
     else:
-        # No placeholder - add at native size, centered on slide
-        # Use the dimensions already determined above (img_width, img_height)
-        img_width_px, img_height_px = img_width, img_height
-        # Convert pixels to EMUs (English Metric Units): 1 inch = 914400 EMUs, assume 96 DPI
-        dpi = 96
-        img_width_emu = int(img_width_px * 914400 / dpi)
-        img_height_emu = int(img_height_px * 914400 / dpi)
-        
-        # Get slide dimensions (standard is 10" x 7.5")
-        slide_width = 9144000  # 10 inches in EMUs
-        slide_height = 6858000  # 7.5 inches in EMUs
-        
-        # Center the image
-        left = (slide_width - img_width_emu) // 2
-        top = (slide_height - img_height_emu) // 2
-        
-        # Ensure image doesn't exceed slide bounds
-        if img_width_emu > slide_width or img_height_emu > slide_height:
-            # Scale down to fit
-            scale = min(slide_width / img_width_emu, slide_height / img_height_emu) * 0.9
-            img_width_emu = int(img_width_emu * scale)
-            img_height_emu = int(img_height_emu * scale)
+        # No explicit picture placeholder; try to find a large empty content/object placeholder to place the image
+        largest_ph = None
+        largest_area = 0
+        for shape in slide.shapes:
+            if getattr(shape, 'is_placeholder', False):
+                try:
+                    ph_type = shape.placeholder_format.type
+                except Exception:
+                    continue
+                # Consider Body, Object, or Content placeholders
+                if ph_type in [2, 7, 14]:
+                    # Only use placeholders that are empty (no text) or don't have a text frame
+                    empty_text = True
+                    if getattr(shape, 'has_text_frame', False):
+                        txt = shape.text or ''
+                        if txt.strip():
+                            empty_text = False
+                    if not empty_text:
+                        continue
+                    area = shape.width * shape.height
+                    if area > largest_area:
+                        largest_area = area
+                        largest_ph = shape
+        if largest_ph is not None and largest_area > 0:
+            ph_width = largest_ph.width
+            ph_height = largest_ph.height
+            ph_left = largest_ph.left
+            ph_top = largest_ph.top
+            print(f"    Using largest empty placeholder for image: {getattr(largest_ph, 'name', None)} size={ph_width/914400:.2f}x{ph_height/914400:.2f}in", file=sys.stderr, flush=True)
+            img_aspect = img_width / img_height
+            ph_aspect = ph_width / ph_height
+            if img_aspect > ph_aspect:
+                new_width = ph_width
+                new_height = int(ph_width / img_aspect)
+            else:
+                new_height = ph_height
+                new_width = int(ph_height * img_aspect)
+            left = ph_left + (ph_width - new_width) // 2
+            top = ph_top + (ph_height - new_height) // 2
+            # Remove placeholder and insert picture
+            sp = largest_ph.element
+            sp.getparent().remove(sp)
+            pic = slide.shapes.add_picture(image_path, left, top, width=new_width, height=new_height)
+            # Send to back
+            slide.shapes._spTree.remove(pic._element)
+            slide.shapes._spTree.insert(2, pic._element)
+            # Clean up any temporary fallback PNG we created for GIFs
+            try:
+                if 'fallback_path' in locals() and fallback_path:
+                    os.remove(fallback_path)
+            except Exception:
+                pass
+            return pic, {'left': ph_left, 'top': ph_top, 'width': ph_width, 'height': ph_height}
+        else:
+            # Fallback to native centered size behavior
+            # Use the dimensions already determined above (img_width, img_height)
+            img_width_px, img_height_px = img_width, img_height
+            # Convert pixels to EMUs (English Metric Units): 1 inch = 914400 EMUs, assume 96 DPI
+            dpi = 96
+            img_width_emu = int(img_width_px * 914400 / dpi)
+            img_height_emu = int(img_height_px * 914400 / dpi)
+            
+            # Get slide dimensions (standard is 10" x 7.5")
+            slide_width = 9144000  # 10 inches in EMUs
+            slide_height = 6858000  # 7.5 inches in EMUs
+            
+            # Center the image
             left = (slide_width - img_width_emu) // 2
             top = (slide_height - img_height_emu) // 2
-        
-        slide.shapes.add_picture(image_path, left, top, width=img_width_emu, height=img_height_emu)
+            
+            # Ensure image doesn't exceed slide bounds
+            if img_width_emu > slide_width or img_height_emu > slide_height:
+                # Scale down to fit
+                scale = min(slide_width / img_width_emu, slide_height / img_height_emu) * 0.9
+                img_width_emu = int(img_width_emu * scale)
+                img_height_emu = int(img_height_emu * scale)
+                left = (slide_width - img_width_emu) // 2
+                top = (slide_height - img_height_emu) // 2
+            
+            pic = slide.shapes.add_picture(image_path, left, top, width=img_width_emu, height=img_height_emu)
+            # Clean up any temporary fallback PNG we created for GIFs
+            try:
+                if 'fallback_path' in locals() and fallback_path:
+                    os.remove(fallback_path)
+            except Exception:
+                pass
+            return pic, None

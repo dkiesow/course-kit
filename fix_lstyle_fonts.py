@@ -10,7 +10,7 @@ import tempfile
 import re
 
 def add_body_lstyle_fonts():
-    template_path = '4734_template.potx'
+    template_path = 'templates/4734_template.potx'
     fixed_template_path = '4734_template_lstyle_fix.potx'
     
     # Work with a temporary directory

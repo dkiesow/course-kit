@@ -11,8 +11,8 @@ import tempfile
 import re
 
 def fix_gold_font_issues():
-    template_path = '4734_template.potx'
-    fixed_template_path = '4734_template_fonts_fixed.potx'
+    template_path = 'templates/4734_template.potx'
+    fixed_template_path = 'templates/4734_template_fonts_fixed.potx'
     
     # Work with a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:

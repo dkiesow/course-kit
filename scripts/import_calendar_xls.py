@@ -1235,11 +1235,30 @@ def import_calendar_xls(
 
     # Process CSV assignments and readings
     if assignments_to_create:
-        print(f"[DEBUG] Creating {len(assignments_to_create)} assignments")
+        print(f"[DEBUG] Processing {len(assignments_to_create)} assignments")
         if not dry_run:
+            created = 0
+            updated = 0
             for name, due, short in assignments_to_create:
-                cursor.execute('INSERT INTO assignments (semester, name, due_date, short) VALUES (?, ?, ?, ?)', (semester, name, due, short))
+                # Check if assignment already exists by name
+                cursor.execute('SELECT id, due_date, short, canvas_assignment_id FROM assignments WHERE name = ?', (name,))
+                existing = cursor.fetchone()
+                
+                if existing:
+                    aid, old_due, old_short, canvas_id = existing
+                    # Update if changed
+                    if old_due != due or old_short != short:
+                        cursor.execute('UPDATE assignments SET due_date = ?, short = ? WHERE id = ?', (due, short, aid))
+                        updated += 1
+                        print(f"  Updated: {name} (ID {aid}, canvas_id: {canvas_id})")
+                else:
+                    # Insert new
+                    cursor.execute('INSERT INTO assignments (semester, name, due_date, short) VALUES (?, ?, ?, ?)', (semester, name, due, short))
+                    created += 1
+                    print(f"  Created: {name}")
+            
             conn.commit()
+            print(f"[DEBUG] Assignments: {created} created, {updated} updated")
         if link_assignments:
             _link_assignments_by_due(semester, link_by_due_n)
     if readings_by_week:

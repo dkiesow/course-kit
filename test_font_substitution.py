@@ -9,7 +9,7 @@ import zipfile
 
 # Test font availability and what actually gets applied
 def debug_font_substitution():
-    template_path = '4734_template.potx'
+    template_path = 'templates/4734_template.potx'
     temp_path = 'temp_template.pptx'
     
     # Patch POTX to PPTX

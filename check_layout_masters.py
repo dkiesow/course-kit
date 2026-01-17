@@ -7,7 +7,7 @@ import zipfile
 import os
 from xml.etree import ElementTree as ET
 
-template_path = '4734_template.potx'
+template_path = 'templates/4734_template.potx'
 temp_extract = 'temp_check_masters'
 
 # Extract POTX

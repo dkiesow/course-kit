@@ -144,6 +144,23 @@ def init_db():
 
     # Backfill new columns for existing databases
     ensure_column('decks', 'notes', 'TEXT')
+    # Calendar-related columns for deck-level schedule
+    ensure_column('decks', 'unit', 'TEXT')
+    ensure_column('decks', 'reading_list', 'TEXT')
+    ensure_column('decks', 'monday_details', 'TEXT')
+    ensure_column('decks', 'wednesday_details', 'TEXT')
+    # Topics for the deck's title slide (up to two topics)
+    ensure_column('decks', 'topic1', 'TEXT')
+    ensure_column('decks', 'topic2', 'TEXT')
+
+    # Link table for deck <-> assignment relationships
+    c.execute('''CREATE TABLE IF NOT EXISTS deck_assignments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    deck_id INTEGER NOT NULL,
+                    assignment_id INTEGER NOT NULL,
+                    UNIQUE(deck_id, assignment_id)
+                )''')
+
     ensure_column('slides', 'hide_headline', 'INTEGER DEFAULT 0')
     ensure_column('slides', 'larger_image', 'INTEGER DEFAULT 0')
     ensure_column('slides', 'has_bullets', 'INTEGER DEFAULT 1')
@@ -200,7 +217,7 @@ def presentation(presentation_id):
             return jsonify({'error': 'Not found'}), 404
         
         # Get all decks with their slides
-        c.execute('SELECT id, week, date, order_index, notes FROM decks WHERE presentation_id = ? ORDER BY order_index', 
+        c.execute('SELECT id, week, date, order_index, notes, topic1, topic2 FROM decks WHERE presentation_id = ? ORDER BY order_index', 
                  (presentation_id,))
         decks = []
         for deck_row in c.fetchall():
@@ -217,7 +234,7 @@ def presentation(presentation_id):
                       'isPhotoCentered': bool(s[17]), 'templateBase': s[18], 'module': s[19], 'masterSlideId': s[20], 'fullscreen': bool(s[21]), 'isDraft': bool(s[22])}
                      for s in c.fetchall()]
             decks.append({'id': deck_id, 'week': deck_row[1], 'date': deck_row[2], 
-                         'orderIndex': deck_row[3], 'notes': deck_row[4], 'slides': slides})
+                         'orderIndex': deck_row[3], 'notes': deck_row[4], 'topic1': deck_row[5], 'topic2': deck_row[6], 'slides': slides})
         
         result = {
             'id': row[0],
@@ -294,8 +311,9 @@ def deck(deck_id):
     
     if request.method == 'PUT':
         data = request.json
-        c.execute('UPDATE decks SET week = ?, date = ?, notes = ? WHERE id = ?',
-                 (data.get('week'), data.get('date'), data.get('notes'), deck_id))
+        # Update decks with topic fields if provided
+        c.execute('UPDATE decks SET week = ?, date = ?, notes = ?, topic1 = ?, topic2 = ? WHERE id = ?',
+                 (data.get('week'), data.get('date'), data.get('notes'), data.get('topic1'), data.get('topic2'), deck_id))
         conn.commit()
         conn.close()
         return jsonify({'success': True})
@@ -480,6 +498,7 @@ def reorder_slides():
     conn.commit()
     conn.close()
     return jsonify({'success': True})
+
 
 @app.route('/api/modules', methods=['GET'])
 def get_modules():
@@ -755,13 +774,15 @@ def export_deck(deck_id):
         c = conn.cursor()
         
         # Get deck info
-        c.execute('SELECT week, date, presentation_id FROM decks WHERE id = ?', (deck_id,))
+        c.execute('SELECT week, date, topic1, topic2, presentation_id FROM decks WHERE id = ?', (deck_id,))
         deck_row = c.fetchone()
         if not deck_row:
             conn.close()
             return jsonify({'error': 'Deck not found'}), 404
         
-        week, date, presentation_id = deck_row
+        week, date, topic1, topic2, presentation_id = deck_row
+        topic1 = topic1 if topic1 else ''
+        topic2 = topic2 if topic2 else ''
         
         # Get presentation front matter
         c.execute('SELECT front_matter FROM presentations WHERE id = ?', (presentation_id,))
@@ -1049,22 +1070,23 @@ COURSE_TITLE: "Journalism Innovation"
                 success = build_pptx_from_slides(
                     slides_data=processed_slides,
                     output_path=output_file,
-                    template_path='4734_template.potx',
+                    template_path='templates/4734_template.potx',
                     pptx_layouts_map=pptx_layouts,
                     deck_info={'week': week, 'date': date, 'course_title': 'Journalism Innovation'}
                 )
                 
                 if success:
                     print(f"Successfully created PPTX: {output_file}")
-                    result = type('obj', (object,), {'returncode': 0})()
+                    # Create a result-like object with stderr for consistent error handling
+                    result = type('obj', (object,), {'returncode': 0, 'stderr': ''})()
                 else:
                     print(f"Failed to create PPTX")
-                    result = type('obj', (object,), {'returncode': 1})()
+                    result = type('obj', (object,), {'returncode': 1, 'stderr': 'pptx_builder reported failure'})()
             except Exception as e:
                 print(f"Error building PPTX: {e}")
                 import traceback
                 traceback.print_exc()
-                result = type('obj', (object,), {'returncode': 1})()
+                result = type('obj', (object,), {'returncode': 1, 'stderr': str(e)})()
         elif format_type == 'odp':
             # For ODP, first create PPTX with python-pptx then convert with LibreOffice
             temp_pptx = output_file.replace('.odp', '_temp.pptx')
@@ -1109,14 +1131,15 @@ COURSE_TITLE: "Journalism Innovation"
                 build_pptx_from_slides(
                     slides_data=processed_slides,
                     output_path=temp_pptx,
-                    template_path='4734_template.potx',
+                    template_path='templates/4734_template.potx',
                     pptx_layouts_map=pptx_layouts,
                     deck_info={'week': week, 'date': date, 'course_title': 'Journalism Innovation'}
                 )
-                result = type('obj', (object,), {'returncode': 0})()
+                # Provide a minimal result object with stderr for downstream error handling
+                result = type('obj', (object,), {'returncode': 0, 'stderr': ''})()
             except Exception as e:
                 print(f"Error building temp PPTX: {e}")
-                result = type('obj', (object,), {'returncode': 1})()
+                result = type('obj', (object,), {'returncode': 1, 'stderr': str(e)})()
         
         # For ODP, convert PPTX to ODP using LibreOffice  
         if format_type == 'odp' and result.returncode == 0:
@@ -1179,22 +1202,55 @@ def generate_presentation_markdown(presentation_id, deck_id=None):
         conn.close()
         return None, 'Presentation not found'
     
-    # Build proper front matter with Marp configuration
-    content = '''---
+    # Build proper front matter with Marp configuration and dynamic variables
+    import datetime
+    presentation_title = row['name'] if isinstance(row, sqlite3.Row) else row[1]
+
+    # Attempt to fetch assignments (table may not exist in test DBs)
+    assignments_list = []
+    try:
+        c.execute('SELECT name, due_date FROM assignments ORDER BY due_date')
+        assignments_list = c.fetchall()
+    except Exception:
+        assignments_list = []
+
+    # Compose YAML front matter
+    content = f'''---
 marp: true
 theme: classroom
 paginate: true
-COURSE_TITLE: "Journalism Innovation"
----
-
+COURSE_TITLE: "{presentation_title}"
+PRESENTATION_TITLE: "{presentation_title}"
+EXPORT_DATE: "{datetime.date.today().isoformat()}"
+ASSIGNMENTS:
 '''
-    
+
+    # Add assignments entries if present
+    for a in assignments_list:
+        try:
+            a_name = a['name'] if isinstance(a, sqlite3.Row) else a[0]
+            a_due = a['due_date'] if isinstance(a, sqlite3.Row) else a[1]
+            a_due = a_due if a_due else ''
+            content += f'  - name: "{a_name}"\n    due_date: "{a_due}"\n'
+        except Exception:
+            continue
+
+    content += '\n'
+
     # Get all decks and slides (or just one deck if deck_id specified)
-    if deck_id:
-        c.execute('SELECT id, week, date FROM decks WHERE id = ?', (deck_id,))
-    else:
-        c.execute('SELECT id, week, date FROM decks WHERE presentation_id = ? ORDER BY order_index', 
-                 (presentation_id,))
+    try:
+        if deck_id:
+            c.execute('SELECT id, week, date, topic1, topic2 FROM decks WHERE id = ?', (deck_id,))
+        else:
+            c.execute('SELECT id, week, date, topic1, topic2 FROM decks WHERE presentation_id = ? ORDER BY order_index', 
+                     (presentation_id,))
+    except sqlite3.OperationalError:
+        # Older test databases may not have topic1/topic2 columns yet - fall back to simpler select
+        if deck_id:
+            c.execute('SELECT id, week, date FROM decks WHERE id = ?', (deck_id,))
+        else:
+            c.execute('SELECT id, week, date FROM decks WHERE presentation_id = ? ORDER BY order_index', 
+                     (presentation_id,))
     decks = c.fetchall()
     
     slides_markdown = []
@@ -1238,9 +1294,18 @@ COURSE_TITLE: "Journalism Innovation"
             if is_title:
                 # Title slide with week/date variables
                 slide_md = f'<!--\nWEEK: "{week}"\nDATE: "{date}"\n_class: title\n-->\n'
-                slide_md += f'# {{{{COURSE_TITLE}}}}\n'
-                slide_md += f'## {{{{WEEK}}}}\n'
-                slide_md += f'{{{{DATE}}}}\n'
+                slide_md += f'# {presentation_title}\n'
+                if week:
+                    slide_md += f'## {week}\n'
+                if date:
+                    slide_md += f'{date}\n'
+                # Render topics (topic1, topic2) if present on deck tuple
+                t1 = deck[3] if len(deck) > 3 else ''
+                t2 = deck[4] if len(deck) > 4 else ''
+                topics = [t for t in (t1, t2) if t]
+                if topics:
+                    topic_text = ' <br> '.join(topics)
+                    slide_md += f'## {topic_text}\n'
             else:
                 # Add class (append hide-headline and/or fullscreen class if needed)
                 classes = [slide_class] if slide_class else []
@@ -1318,8 +1383,35 @@ COURSE_TITLE: "Journalism Innovation"
                     if is_image_template and not is_photo_centered and image_path:
                         slide_md += f'\n![Image]({image_path})\n'
             
+                # If no headline was provided, and this is an image/photo template, ensure the
+                # Marp class comment includes `hide-headline` so layout CSS can collapse reserved space.
+                if not headline and slide_class and any(k in slide_class for k in ('image', 'photo', 'full-photo')):
+                    if slide_md:
+                        if 'hide-headline' not in slide_md:
+                            slide_md = slide_md.replace('-->\n', ' hide-headline -->\n')
+                    else:
+                        slide_md = '<!-- _class: hide-headline -->\n'
+
+            # Sanitize title slides: ensure topics are not rendered as extra subtitle lines
+            if is_title:
+                parts = slide_md.split('\n')
+                out = []
+                seen_sub = False
+                for p in parts:
+                    if p.startswith('## '):
+                        if not seen_sub:
+                            out.append(p)
+                            seen_sub = True
+                        else:
+                            # skip additional subtitle lines (these would be topics)
+                            continue
+                    elif p:
+                        out.append(p)
+                slide_md = '\n'.join(out) + ('\n' if out else '')
+
+            # Append the rendered slide markdown to the list
             slides_markdown.append(slide_md)
-    
+
     content += '\n\n---\n\n'.join(slides_markdown)
     
     filename = f"{row[1].replace(' ', '_')}.md"
@@ -1412,13 +1504,17 @@ def export_presentation(presentation_id):
     if not row:
         conn.close()
         return jsonify({'error': 'Not found'}), 404
+
+    # Presentation title (used for title slides)
+    presentation_title = row['name'] if isinstance(row, sqlite3.Row) else row[0]
     
     # Build proper front matter with Marp configuration
-    content = '''---
+    content = f'''---
 marp: true
 theme: classroom
 paginate: true
-COURSE_TITLE: "Journalism Innovation"
+COURSE_TITLE: "{presentation_title}"
+PRESENTATION_TITLE: "{presentation_title}"
 ---
 
 '''
@@ -1469,9 +1565,18 @@ COURSE_TITLE: "Journalism Innovation"
             if is_title:
                 # Title slide with week/date variables
                 slide_md = f'<!--\nWEEK: "{week}"\nDATE: "{date}"\n_class: title\n-->\n'
-                slide_md += f'# {{{{COURSE_TITLE}}}}\n'
-                slide_md += f'## {{{{WEEK}}}}\n'
-                slide_md += f'{{{{DATE}}}}\n'
+                slide_md += f'# {presentation_title}\n'
+                if week:
+                    slide_md += f'## {week}\n'
+                if date:
+                    slide_md += f'{date}\n'
+                # Render topics (topic1, topic2) if present on deck tuple
+                t1 = deck[3] if len(deck) > 3 else ''
+                t2 = deck[4] if len(deck) > 4 else ''
+                topics = [t for t in (t1, t2) if t]
+                if topics:
+                    topic_text = ' <br> '.join(topics)
+                    slide_md += f'## {topic_text}\n'
             else:
                 # Add class (append hide-headline and/or fullscreen class if needed)
                 classes = [slide_class] if slide_class else []
@@ -1549,6 +1654,32 @@ COURSE_TITLE: "Journalism Innovation"
                     if is_image_template and not is_photo_centered and image_path:
                         slide_md += f'\n![Image]({image_path})\n'
             
+                # If no headline was provided, and this is an image/photo template, ensure the
+                # Marp class comment includes `hide-headline` so layout CSS can collapse reserved space.
+                if not headline and slide_class and any(k in slide_class for k in ('image', 'photo', 'full-photo')):
+                    if slide_md:
+                        if 'hide-headline' not in slide_md:
+                            slide_md = slide_md.replace('-->\n', ' hide-headline -->\n')
+                    else:
+                        slide_md = '<!-- _class: hide-headline -->\n'
+
+            # Sanitize title slides: ensure topics are not rendered as extra subtitle lines
+            if is_title:
+                parts = slide_md.split('\n')
+                out = []
+                seen_sub = False
+                for p in parts:
+                    if p.startswith('## '):
+                        if not seen_sub:
+                            out.append(p)
+                            seen_sub = True
+                        else:
+                            # skip additional subtitle lines (these would be topics)
+                            continue
+                    elif p:
+                        out.append(p)
+                slide_md = '\n'.join(out) + ('\n' if out else '')
+
             slides_markdown.append(slide_md)
     
     content += '\n\n---\n\n'.join(slides_markdown)
@@ -1754,6 +1885,158 @@ def import_presentation():
     conn.close()
     
     return jsonify({'id': presentation_id, 'name': name}), 201
+
+@app.route('/canvas/config', methods=['GET', 'POST'])
+def canvas_config():
+    """Configure Canvas API settings."""
+    config_file = 'canvas_config.json'
+    
+    if request.method == 'POST':
+        data = request.json
+        with open(config_file, 'w') as f:
+            json.dump(data, f)
+        return jsonify({'status': 'success'})
+    
+    # GET - return current config
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+    else:
+        config = {'api_key': '', 'canvas_url': '', 'course_id': ''}
+    
+    return jsonify(config)
+
+@app.route('/canvas/fetch-assignments', methods=['POST'])
+def canvas_fetch_assignments():
+    """Fetch assignments from Canvas."""
+    import sys
+    sys.path.append('scripts')
+    from canvas_api import CanvasAPI
+    
+    data = request.json
+    api_key = data.get('api_key')
+    canvas_url = data.get('canvas_url')
+    course_id = data.get('course_id')
+    
+    if not all([api_key, canvas_url, course_id]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    try:
+        canvas = CanvasAPI(api_key, canvas_url)
+        assignments = canvas.get_course_assignments(course_id)
+        
+        # Format for frontend
+        formatted = [{
+            'id': str(a['id']),
+            'name': a['name'],
+            'due_at': a.get('due_at', ''),
+            'points_possible': a.get('points_possible', 0)
+        } for a in assignments]
+        
+        return jsonify(formatted)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/canvas/link-assignment', methods=['POST'])
+def canvas_link_assignment():
+    """Link a Canvas assignment ID to an app assignment."""
+    data = request.json
+    app_assignment_id = data.get('app_assignment_id')
+    canvas_assignment_id = data.get('canvas_assignment_id')
+    
+    if not all([app_assignment_id, canvas_assignment_id]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('UPDATE assignments SET canvas_assignment_id = ? WHERE id = ?',
+              (canvas_assignment_id, app_assignment_id))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'status': 'success'})
+
+@app.route('/canvas/sync-assignment', methods=['POST'])
+def canvas_sync_assignment():
+    """Sync an app assignment's due date and name to Canvas."""
+    import sys
+    sys.path.append('scripts')
+    from canvas_api import CanvasAPI
+    
+    data = request.json
+    app_assignment_id = data.get('app_assignment_id')
+    update_name = data.get('update_name', False)
+    update_due_date = data.get('update_due_date', True)
+    
+    # Get Canvas config
+    config_file = 'canvas_config.json'
+    if not os.path.exists(config_file):
+        return jsonify({'error': 'Canvas not configured'}), 400
+    
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+    
+    # Get assignment details
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT name, due_date, canvas_assignment_id FROM assignments WHERE id = ?',
+              (app_assignment_id,))
+    row = c.fetchone()
+    conn.close()
+    
+    if not row:
+        return jsonify({'error': 'Assignment not found'}), 404
+    
+    name, due_date, canvas_assignment_id = row
+    
+    if not canvas_assignment_id:
+        return jsonify({'error': 'Assignment not linked to Canvas'}), 400
+    
+    try:
+        canvas = CanvasAPI(config['api_key'], config['canvas_url'])
+        result = canvas.update_assignment(
+            config['course_id'],
+            canvas_assignment_id,
+            name=name if update_name else None,
+            due_date=due_date if update_due_date else None
+        )
+        return jsonify({'status': 'success', 'assignment': result})
+    except requests.exceptions.HTTPError as e:
+        # Get more details from the response
+        error_detail = str(e)
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_detail = f"{e}: {error_data}"
+            except:
+                error_detail = f"{e}: {e.response.text}"
+        return jsonify({'error': error_detail}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/canvas/manager')
+def canvas_manager():
+    """Canvas assignment manager interface."""
+    return render_template('canvas_manager.html')
+
+@app.route('/canvas/assignments', methods=['GET'])
+def get_app_assignments():
+    """Get all app assignments with their Canvas linkage."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''SELECT id, name, due_date, semester, short, canvas_assignment_id 
+                 FROM assignments ORDER BY due_date''')
+    assignments = [{
+        'id': row[0],
+        'name': row[1],
+        'due_date': row[2],
+        'semester': row[3],
+        'short': row[4],
+        'canvas_assignment_id': row[5]
+    } for row in c.fetchall()]
+    conn.close()
+    
+    return jsonify(assignments)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

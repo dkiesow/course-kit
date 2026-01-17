@@ -515,6 +515,11 @@
         .slide-item.hidden {
             display: none !important;
         }
+
+        .slide-item.selected {
+            background: #fff3cd !important;
+            border-left: 3px solid #ffc107 !important;
+        }
     </style>
 </head>
 <body>
@@ -572,6 +577,93 @@
         let autoSaveTimeout = null;
         let exportInterval = null;
         
+        // Multi-select state
+        let selectedSlides = new Set();
+        
+
+        
+        // Multi-select via Shift/Cmd + click (no checkboxes)
+        let selectionDeckId = null; // which deck the current selection belongs to
+        let lastSelectedIndex = null;
+
+        function updateSelectionUI() {
+            document.querySelectorAll('.slide-item').forEach(item => {
+                const slideId = parseInt(item.dataset.slideId, 10);
+                item.classList.toggle('selected', selectedSlides.has(slideId));
+            });
+        }
+
+        function clearSelection() {
+            selectedSlides.clear();
+            selectionDeckId = null;
+            lastSelectedIndex = null;
+            updateSelectionUI();
+        }
+
+        function getSlideIndex(deckId, slideId) {
+            const deck = currentPresentation.decks.find(d => d.id === deckId);
+            if (!deck) return null;
+            return deck.slides.findIndex(s => s.id === slideId);
+        }
+
+        function selectSingleSlide(deckId, slideId, openEditor = true) {
+            selectedSlides.clear();
+            selectedSlides.add(slideId);
+            selectionDeckId = deckId;
+            lastSelectedIndex = getSlideIndex(deckId, slideId);
+            updateSelectionUI();
+            if (openEditor) editSlide(deckId, slideId);
+        }
+
+        function toggleSlideSelection(deckId, slideId) {
+            if (selectionDeckId && selectionDeckId !== deckId) {
+                // start new selection for different deck
+                selectedSlides.clear();
+                selectionDeckId = deckId;
+            }
+            if (selectedSlides.has(slideId)) selectedSlides.delete(slideId); else selectedSlides.add(slideId);
+            lastSelectedIndex = getSlideIndex(deckId, slideId);
+            updateSelectionUI();
+        }
+
+        function rangeSelect(deckId, slideId) {
+            const deck = currentPresentation.decks.find(d => d.id === deckId);
+            if (!deck) return;
+            const idx = deck.slides.findIndex(s => s.id === slideId);
+            const startIdx = (lastSelectedIndex !== null && selectionDeckId === deckId) ? lastSelectedIndex : idx;
+            const [start, end] = [Math.min(startIdx, idx), Math.max(startIdx, idx)];
+            selectedSlides.clear();
+            for (let i = start; i <= end; i++) selectedSlides.add(deck.slides[i].id);
+            selectionDeckId = deckId;
+            lastSelectedIndex = idx;
+            updateSelectionUI();
+        }
+
+        // Click handler for slides: supports Shift and Cmd/Ctrl for multi-select
+        function handleSlideClick(deckId, slideId, event) {
+            if (event.shiftKey) {
+                rangeSelect(deckId, slideId);
+                return;
+            }
+            if (event.metaKey || event.ctrlKey) {
+                toggleSlideSelection(deckId, slideId);
+                return;
+            }
+            // Plain click: select single and open editor
+            selectSingleSlide(deckId, slideId, true);
+        }
+
+        // Delete selected slides with Delete key
+        document.addEventListener('keydown', async (e) => {
+            if (e.key === 'Delete' && selectedSlides.size > 0) {
+                if (!confirm(`Delete ${selectedSlides.size} selected slide(s)?`)) return;
+                const deletePromises = Array.from(selectedSlides).map(id => fetch(`/api/slides/${id}`, { method: 'DELETE' }));
+                await Promise.all(deletePromises);
+                clearSelection();
+                await loadPresentation();
+            }
+        });
+        
         // Load presentations list
         async function loadPresentationsList() {
             const response = await fetch('/api/presentations');
@@ -580,6 +672,15 @@
             const select = document.getElementById('presentation-select');
             const options = presentations.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
             select.innerHTML = '<option value="">Select presentation...</option>' + options;
+
+            // If there is a current selection, preserve it. If none selected and exactly one
+            // presentation exists, auto-select it and load it so decks appear without extra clicks.
+            if (currentPresentation && currentPresentation.id) {
+                select.value = currentPresentation.id;
+            } else if (!select.value && presentations.length === 1) {
+                select.value = presentations[0].id;
+                await loadPresentation();
+            }
         }
         
         // Load presentation
@@ -682,7 +783,7 @@
                                  ' ondragleave="handleDragLeave(event)"' +
                                  ' ondrop="handleDrop(event)"' +
                                  ' ondragend="handleDragEnd(event)"' +
-                                 ' onclick="editSlide(' + deck.id + ', ' + slide.id + ')">' +
+                                 ' onclick="handleSlideClick(' + deck.id + ', ' + slide.id + ', event)">' +
                                 '<div class="slide-item-title">' +
                                     (slide.masterSlideId ? '🔗 ' : '') + (slide.isTitle ? '📌 Title Slide' : (slide.headline || '(No headline)')) +
                                 '</div>' +
@@ -1017,13 +1118,14 @@
         // Render editor
         function renderEditor(slide) {
             const isQuote = slide.hasQuote || false;
-            const hasImage = slide.hasImage || false;
-            const is2Col = slide.isTwoColumn || false;
-            const isTitle = slide.isTitle;
-            
             // Determine base template and gold status
             let baseTemplate = slide.templateBase || 'bullets';
             let isGold = slide.isGold || false;
+            
+            // Compute hasImage from templateBase, not from slide.hasImage which may be stale
+            const hasImage = baseTemplate.includes('image') || baseTemplate === 'photo-centered' || baseTemplate === 'full-photo-headline';
+            const is2Col = slide.isTwoColumn || false;
+            const isTitle = slide.isTitle;
             
             console.log('Loading slide:', slide.id, 'largerImage:', slide.largerImage);
             
@@ -1058,6 +1160,14 @@
                         '<input type="text" id="deck-date" value="' + (currentDeck.date || '') + '" placeholder="January 15, 2025">' +
                     '</div>' +
                     '<div class="form-group">' +
+                        '<label>Topic 1</label>' +
+                        '<input type="text" id="deck-topic1" value="' + (currentDeck.topic1 || '') + '" placeholder="Primary topic">' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Topic 2</label>' +
+                        '<input type="text" id="deck-topic2" value="' + (currentDeck.topic2 || '') + '" placeholder="Secondary topic (optional)">' +
+                    '</div>' +
+                    '<div class="form-group">' +
                         '<label>Notes</label>' +
                         '<textarea id="deck-notes" rows="6" placeholder="Add notes about this deck for reference...">' + (currentDeck.notes || '') + '</textarea>' +
                     '</div>'
@@ -1075,6 +1185,7 @@
                             '<option value="bullets-image"' + (baseTemplate === 'bullets-image' ? ' selected' : '') + '>Bullets with Right Image</option>' +
                             '<option value="bullets-image-split"' + (baseTemplate === 'bullets-image-split' ? ' selected' : '') + '>Bullets + Image (Split)</option>' +
                             '<option value="bullets-image-top"' + (baseTemplate === 'bullets-image-top' ? ' selected' : '') + '>Bullets Top / Image Bottom</option>' +
+                            '<option value="full-photo-headline"' + (baseTemplate === 'full-photo-headline' ? ' selected' : '') + '>Full Photo Headline (Bullets top / Image bottom)</option>' +
                             '<option value="quote"' + (baseTemplate === 'quote' ? ' selected' : '') + '>Quote</option>' +
                             '<option value="photo-centered"' + (baseTemplate === 'photo-centered' ? ' selected' : '') + '>Centered Photo</option>' +
                             '<option value="lines"' + (baseTemplate === 'lines' ? ' selected' : '') + '>Text Lines (no bullets)</option>' +
@@ -1173,6 +1284,8 @@
                 if (isTitle) {
                     document.getElementById('deck-week')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('deck-date')?.addEventListener('input', triggerAutoSave);
+                    document.getElementById('deck-topic1')?.addEventListener('input', triggerAutoSave);
+                    document.getElementById('deck-topic2')?.addEventListener('input', triggerAutoSave);
                     document.getElementById('deck-notes')?.addEventListener('input', triggerAutoSave);
                 } else {
                     // Set the template and gold checkbox values
@@ -1252,7 +1365,7 @@
         function updateEditorFields() {
             const templateBase = document.getElementById('slide-class').value;
             const isQuote = templateBase === 'quote';
-            const hasImage = templateBase.includes('image') || templateBase === 'photo-centered';
+            const hasImage = templateBase.includes('image') || templateBase === 'photo-centered' || templateBase === 'full-photo-headline';
             const isTextOnly = templateBase === 'lines';
             const isPhotoCentered = templateBase === 'photo-centered';
             const isClosing = templateBase === 'closing';
@@ -1443,6 +1556,8 @@
                 const deckData = {
                     week: document.getElementById('deck-week').value,
                     date: document.getElementById('deck-date').value,
+                    topic1: document.getElementById('deck-topic1')?.value || '',
+                    topic2: document.getElementById('deck-topic2')?.value || '',
                     notes: document.getElementById('deck-notes').value
                 };
                 
@@ -1542,107 +1657,113 @@
             `;
         }
         
-        // Drag and drop handlers
-        let draggedSlide = null;
-        
+        // Drag and drop handlers (support multi-slide drag based on keyboard selection)
+        let draggedSlides = [];
+        let dragSourceDeckId = null;
+
         function handleDragStart(event) {
-            draggedSlide = {
-                slideId: parseInt(event.target.getAttribute('data-slide-id')),
-                deckId: parseInt(event.target.getAttribute('data-deck-id'))
-            };
+            const slideId = parseInt(event.target.getAttribute('data-slide-id'), 10);
+            const deckId = parseInt(event.target.getAttribute('data-deck-id'), 10);
+            dragSourceDeckId = deckId;
+
+            const deck = currentPresentation.decks.find(d => d.id === deckId);
+            let toDrag = [];
+            if (selectedSlides.size > 0 && selectionDeckId === deckId && selectedSlides.has(slideId)) {
+                // drag all selected slides in deck order
+                toDrag = deck.slides.filter(s => selectedSlides.has(s.id)).map(s => s.id);
+            } else {
+                // select only the dragged slide
+                selectedSlides.clear();
+                selectedSlides.add(slideId);
+                selectionDeckId = deckId;
+                lastSelectedIndex = getSlideIndex(deckId, slideId);
+                updateSelectionUI();
+                toDrag = [slideId];
+            }
+
+            draggedSlides = toDrag;
+
+            try { event.dataTransfer.setData('text/plain', draggedSlides.join(',')); } catch (e) {}
+            event.dataTransfer.effectAllowed = 'move';
+
+            // add dragging class to all dragged elements for visual feedback
+            draggedSlides.forEach(id => {
+                const el = document.querySelector(`.slide-item[data-slide-id='${id}']`);
+                if (el) el.classList.add('dragging');
+            });
             event.target.classList.add('dragging');
         }
-        
-        function handleDragOver(event) {
-            event.preventDefault();
-        }
-        
+
+        function handleDragOver(event) { event.preventDefault(); }
+
         function handleDragEnter(event) {
             const target = event.target.closest('.slide-item');
             if (target) target.classList.add('drag-over');
         }
-        
+
         function handleDragLeave(event) {
             const target = event.target.closest('.slide-item');
             if (target) target.classList.remove('drag-over');
         }
-        
+
         async function handleDrop(event) {
             event.preventDefault();
             const target = event.target.closest('.slide-item');
             if (!target) return;
-            
             target.classList.remove('drag-over');
-            
+
             const targetSlideId = parseInt(target.getAttribute('data-slide-id'));
             const targetDeckId = parseInt(target.getAttribute('data-deck-id'));
-            
-            if (draggedSlide.slideId === targetSlideId) return;
-            
-            const sourceDeck = currentPresentation.decks.find(d => d.id === draggedSlide.deckId);
+            if (!draggedSlides || draggedSlides.length === 0) return;
+
+            const sourceDeck = currentPresentation.decks.find(d => d.id === dragSourceDeckId);
             const targetDeck = currentPresentation.decks.find(d => d.id === targetDeckId);
-            const draggedSlideObj = sourceDeck.slides.find(s => s.id === draggedSlide.slideId);
-            
-            if (draggedSlide.deckId === targetDeckId) {
-                // Same deck: reorder within deck
-                const targetSlideObj = targetDeck.slides.find(s => s.id === targetSlideId);
-                const oldIndex = targetDeck.slides.indexOf(draggedSlideObj);
-                const newIndex = targetDeck.slides.indexOf(targetSlideObj);
-                
-                targetDeck.slides.splice(oldIndex, 1);
-                targetDeck.slides.splice(newIndex, 0, draggedSlideObj);
-                
-                const updates = targetDeck.slides.map((slide, index) => ({
-                    id: slide.id,
-                    orderIndex: index
-                }));
-                
-                await fetch('/api/slides/reorder', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ slides: updates })
-                });
+            const draggedIdsSet = new Set(draggedSlides);
+
+            // Get dragged objects from source deck preserving source order
+            const draggedObjs = sourceDeck.slides.filter(s => draggedIdsSet.has(s.id));
+
+            if (dragSourceDeckId === targetDeckId) {
+                // same deck: remove dragged slides and insert at target index
+                const remaining = sourceDeck.slides.filter(s => !draggedIdsSet.has(s.id));
+                const insertIndex = remaining.findIndex(s => s.id === targetSlideId);
+                const newSlides = remaining.slice(0, insertIndex).concat(draggedObjs, remaining.slice(insertIndex));
+                sourceDeck.slides = newSlides;
+
+                const updates = sourceDeck.slides.map((slide, index) => ({ id: slide.id, orderIndex: index }));
+                await fetch('/api/slides/reorder', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ slides: updates }) });
             } else {
-                // Different deck: move slide and update both decks
-                const targetSlideObj = targetDeck.slides.find(s => s.id === targetSlideId);
-                const targetIndex = targetDeck.slides.indexOf(targetSlideObj);
-                
-                // Remove from source deck
-                const sourceIndex = sourceDeck.slides.indexOf(draggedSlideObj);
-                sourceDeck.slides.splice(sourceIndex, 1);
-                
-                // Add to target deck
-                targetDeck.slides.splice(targetIndex, 0, draggedSlideObj);
-                
-                // Update slide's deck_id
-                await fetch(`/api/slides/${draggedSlide.slideId}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ deck_id: targetDeckId })
-                });
-                
-                // Update order for both decks
-                const sourceUpdates = sourceDeck.slides.map((slide, index) => ({
-                    id: slide.id,
-                    orderIndex: index
-                }));
-                const targetUpdates = targetDeck.slides.map((slide, index) => ({
-                    id: slide.id,
-                    orderIndex: index
-                }));
-                
-                await fetch('/api/slides/reorder', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ slides: [...sourceUpdates, ...targetUpdates] })
-                });
+                // different deck: remove from source and insert into target
+                sourceDeck.slides = sourceDeck.slides.filter(s => !draggedIdsSet.has(s.id));
+                const insertIndex = targetDeck.slides.findIndex(s => s.id === targetSlideId);
+                targetDeck.slides.splice(insertIndex, 0, ...draggedObjs);
+
+                // update deck_id for moved slides
+                for (const id of draggedSlides) {
+                    await fetch(`/api/slides/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ deck_id: targetDeckId }) });
+                }
+
+                // reorder both decks
+                const sourceUpdates = sourceDeck.slides.map((slide, index) => ({ id: slide.id, orderIndex: index }));
+                const targetUpdates = targetDeck.slides.map((slide, index) => ({ id: slide.id, orderIndex: index }));
+                await fetch('/api/slides/reorder', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ slides: [...sourceUpdates, ...targetUpdates] }) });
+
+                // after moving, set selection to moved slides in target deck
+                selectedSlides.clear();
+                draggedObjs.forEach(s => selectedSlides.add(s.id));
+                selectionDeckId = targetDeckId;
             }
-            
+
+            // cleanup dragging classes
+            document.querySelectorAll('.slide-item.dragging').forEach(el => el.classList.remove('dragging'));
+            draggedSlides = [];
+            dragSourceDeckId = null;
+
             await loadPresentation();
         }
-        
+
         function handleDragEnd(event) {
-            event.target.classList.remove('dragging');
+            document.querySelectorAll('.slide-item.dragging').forEach(el => el.classList.remove('dragging'));
             document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
         }
         

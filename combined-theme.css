@@ -1186,3 +1186,19 @@ section.hide-headline h1 {
 section.hide-headline h1::after {
 	display: none !important;
 }
+
+/* If an image-based template has no headline, reduce top padding so content moves up */
+section.bullets-image-top.hide-headline,
+section.template-bullets-image.hide-headline,
+section.template-bullets-image-top.hide-headline,
+section.gold-bullets-image-top.hide-headline,
+section.gold-bullets-image.hide-headline {
+	padding-top: 100px !important;
+}
+
+/* Allow images to occupy more vertical space when headline is hidden */
+section.bullets-image-top.hide-headline img,
+section.template-bullets-image.hide-headline img,
+section.template-bullets-image-top.hide-headline img {
+	max-height: 60% !important;
+}

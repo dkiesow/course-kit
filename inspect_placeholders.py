@@ -6,7 +6,7 @@ import shutil
 from pptx import Presentation
 
 # Copy and patch template
-shutil.copy('4734_template.potx', 'temp_check.pptx')
+shutil.copy('templates/4734_template.potx', 'temp_check.pptx')
 
 try:
     # Patch content type

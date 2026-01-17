@@ -3,7 +3,7 @@ import shutil
 import zipfile
 
 # Patch POTX to work with python-pptx
-template_path = '4734_template.potx'
+template_path = 'templates/4734_template.potx'
 temp_path = 'temp_template.pptx'
 
 shutil.copy(template_path, temp_path)

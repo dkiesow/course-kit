@@ -20,8 +20,8 @@ namespaces = {
 for prefix, uri in namespaces.items():
     ET.register_namespace(prefix, uri)
 
-template_path = '4734_template.potx'
-backup_path = '4734_template_backup.potx'
+template_path = 'templates/4734_template.potx'
+backup_path = 'templates/4734_template_backup.potx'
 temp_extract = 'temp_potx_extract'
 
 # Backup original
