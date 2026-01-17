@@ -2,11 +2,12 @@
 """Import calendar rows from an Excel template into the decks table and link assignments.
 
 Expected columns (first sheet by default):
-A: Unit / Date(s)
-B: Reading list
-C: MON details
-D: WED details
-E: Assignments (comma-separated list of short codes or names)
+A: Serial # (for UUID generation)
+B: Unit / Date(s)
+C: Reading list
+D: MON details
+E: WED details
+F: Assignments (comma-separated list of short codes or names)
 
 Behavior:
 - Parse dates from column A and match decks by date (attempts multiple common date formats).
@@ -22,12 +23,14 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime
+import hashlib
 import json
 import os
 import re
 import shutil
 import sqlite3
 import sys
+import uuid
 from typing import List, Dict, Optional, Tuple, Set
 from copy import copy
 
@@ -51,6 +54,26 @@ except Exception:
             except ValueError:
                 continue
         return None
+
+
+def generate_assignment_uuid(semester: str, identifier: str) -> str:
+    """Generate a stable UUID for an assignment based on semester and identifier.
+    
+    This ensures that re-importing the same assignment from CSV/Excel won't create duplicates
+    and won't break existing references. Uses UUID5 with a namespace.
+    
+    Args:
+        semester: Semester code (e.g., 'SP2026')
+        identifier: Serial number or short code (e.g., '1', '2', 'PROJ1')
+    
+    Returns:
+        UUID string (e.g., 'a1b2c3d4-...' for SP2026:1)
+    """
+    # Use a custom namespace UUID for our assignments
+    namespace = uuid.UUID('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+    # Normalize inputs to ensure consistency
+    key = f"{semester.upper().strip()}:{str(identifier).strip()}"
+    return str(uuid.uuid5(namespace, key))
 
 
 def extract_iso_dates(value: object, semester: Optional[str] = None) -> List[str]:
@@ -127,41 +150,55 @@ def extract_iso_dates(value: object, semester: Optional[str] = None) -> List[str
 
 
 def parse_xls_row(values: Tuple, semester: Optional[str] = None) -> Dict[str, Optional[object]]:
-    """Parse a row's values (A..E) into a structured dict.
+    """Parse a row's values (A..F) into a structured dict.
 
     values: tuple-like from `openpyxl` row `values_only=True` or any sequence of cell values.
-    Returns: dict with keys: unit (str|None), dates (list[str]), reading_list (str|None), monday_details (str|None), wednesday_details (str|None), assignments (list[str])
+    Returns: dict with keys: serial (str|None), unit (str|None), dates (list[str]), reading_list (str|None), monday_details (str|None), wednesday_details (str|None), assignments (list[str])
     """
+    # Column A: Serial number
     a = values[0] if len(values) >= 1 else None
+    # Column B: Unit / Date(s) - shifted from old column A
     b = values[1] if len(values) >= 2 else None
+    # Column C: Reading list - shifted from old column B
     c = values[2] if len(values) >= 3 else None
+    # Column D: MON details - shifted from old column C
     d = values[3] if len(values) >= 4 else None
+    # Column E: WED details - shifted from old column D
     e = values[4] if len(values) >= 5 else None
+    # Column F: Assignments - shifted from old column E
+    f = values[5] if len(values) >= 6 else None
 
+    # Extract serial number from column A
+    serial = None
+    if a not in (None, ""):
+        serial = str(a).strip()
+
+    # Extract unit from column B (was column A)
     unit = None
-    if a:
-        ma = re.search(r"Unit\s*#?\s*(\d+)", str(a), flags=re.I)
+    if b:
+        ma = re.search(r"Unit\s*#?\s*(\d+)", str(b), flags=re.I)
         if ma:
             unit = ma.group(1)
         else:
             # Try to extract plain leading token
-            s = str(a).strip()
+            s = str(b).strip()
             if s:
                 unit = s
 
-    # Extract dates (handles ranges and no-year mm/dd tokens)
-    dates: List[str] = extract_iso_dates(a, semester=semester)
+    # Extract dates from column B (handles ranges and no-year mm/dd tokens)
+    dates: List[str] = extract_iso_dates(b, semester=semester)
 
-    reading_list = str(b).strip() if b not in (None, "") else None
-    monday_details = str(c).strip() if c not in (None, "") else None
-    wednesday_details = str(d).strip() if d not in (None, "") else None
+    reading_list = str(c).strip() if c not in (None, "") else None
+    monday_details = str(d).strip() if d not in (None, "") else None
+    wednesday_details = str(e).strip() if e not in (None, "") else None
 
     assignments = []
-    if e:
-        parts = re.split(r"[,;|]+", str(e))
+    if f:
+        parts = re.split(r"[,;|]+", str(f))
         assignments = [p.strip() for p in parts if p and p.strip()]
 
     return {
+        "serial": serial,
         "unit": unit,
         "dates": dates,
         "reading_list": reading_list,
@@ -510,14 +547,9 @@ def import_calendar_xls(
 
     # If requested, build parsed_rows from the DB (topics from decks, calendar from CSV)
     if populate_from_db and (populate_template or populate_base):
-        print(f"[DEBUG] Building parsed_rows: calendar from CSV, topics from DB (presentation_id={presentation_id})")
+        print(f"[DEBUG] Building parsed_rows from DB (presentation_id={presentation_id})")
         
-        # First read CSV for calendar structure, holidays, and assignments
-        if not csv_rows:
-            print("[ERROR] CSV file required for calendar structure when using --populate-from-db")
-            return
-        
-        # Then get deck topics from DB
+        # Get deck data from DB to build calendar structure
         q = 'SELECT id, week, unit, date, reading_list, topic1, topic2, monday_details, wednesday_details FROM decks WHERE date IS NOT NULL'
         params: Tuple = ()
         if presentation_id:
@@ -622,11 +654,12 @@ def import_calendar_xls(
         # First, get all decks to assign sequential lecture numbers
         # We need to sort by actual date, not string representation
         c_decks = conn.cursor()
-        c_decks.execute('''
-            SELECT id, week, date, order_index 
-            FROM decks 
-            WHERE presentation_id = ? 
-        ''', (presentation_id,))
+        q_decks = 'SELECT id, week, date, order_index FROM decks WHERE date IS NOT NULL'
+        params_decks: Tuple = ()
+        if presentation_id:
+            q_decks += ' AND presentation_id = ?'
+            params_decks = (presentation_id,)
+        c_decks.execute(q_decks, params_decks)
         all_decks = c_decks.fetchall()
         
         # Parse dates and sort chronologically
@@ -669,7 +702,6 @@ def import_calendar_xls(
                 lecture_num += 1
                 if lecture_num <= len(lecture_words):
                     deck_lecture_info[deck_id] = (lecture_words[lecture_num - 1], is_monday, is_wednesday)
-                    print(f"[DEBUG] Deck {deck_id} ({week_name}, {date_str}, {parsed_date}): Lecture {lecture_words[lecture_num - 1]}")
         
         for week_num in sorted(deck_topics_by_week.keys()):
             deck_info = deck_topics_by_week[week_num]
@@ -689,7 +721,7 @@ def import_calendar_xls(
                     if is_wednesday and wednesday_details:
                         wednesday_details = lecture_word + '\n' + wednesday_details
             
-            # Assignments will be added from CSV below
+            # Assignments will come from CSV below
             parsed_rows.append({
                 'row': week_num,
                 'unit': week_num,
@@ -717,13 +749,16 @@ def import_calendar_xls(
     readings_by_week = {}
     assignments_by_week = {}  # Track assignments by week from CSV
     holidays_by_week = {}  # Track holidays with their week numbers
+    print(f"[DEBUG] csv_rows type: {type(csv_rows)}, length: {len(csv_rows) if csv_rows else 0}, first row: {csv_rows[0] if csv_rows else 'None'}")
     if csv_rows:
         # Parse CSV as assignments/readings/holidays format
         # This runs even in populate_from_db mode to get readings and holidays
+        print(f"[DEBUG] Parsing {len(csv_rows)-1} CSV rows...")
         for row in csv_rows[1:]:  # skip header
-            if len(row) < 5:
+            if len(row) < 6:
                 continue
-            semester, week, assignment, due_date, xls_short = row[0], row[1], row[2], row[3], row[4]
+            # CSV format: ID, Semester, Week, Assignment, Due Date, XLS Short
+            id_col, semester_col, week, assignment, due_date, xls_short = row[0], row[1], row[2], row[3], row[4], row[5]
             
             # Check for holidays/no class FIRST before treating as assignment
             if assignment in ['Holiday', 'No Class'] and due_date:
@@ -738,6 +773,7 @@ def import_calendar_xls(
                         existing = holidays_by_week.get(week_num, [])
                         if not any(d == parsed for d, _ in existing):
                             holidays_by_week.setdefault(week_num, []).append((parsed, xls_short or assignment))
+                            print(f"[DEBUG] Added holiday week {week_num}: {parsed} = {xls_short or assignment}")
             elif assignment and due_date:
                 # Real assignment - track by week number
                 week_num = int(week) if week.isdigit() else None
@@ -758,6 +794,8 @@ def import_calendar_xls(
         
         # If populate_from_db, overlay CSV readings and holidays onto parsed_rows from decks
         if populate_from_db and (populate_template or populate_base):
+            
+            print(f"[DEBUG] CSV data: readings_by_week={list(readings_by_week.keys())}, holidays_by_week={list(holidays_by_week.keys())}, assignments_by_week={list(assignments_by_week.keys())}")
             
             # Determine all weeks mentioned in CSV or that have decks
             all_weeks = set(deck_topics_by_week.keys())
@@ -845,19 +883,27 @@ def import_calendar_xls(
                             pr['wednesday_no_class'] = True
                             wednesday_holiday_labels.append(holiday_label)
                 
-                # If no deck topics but have holiday labels, use the labels with empty lines around them
-                if not pr['monday_details'] and monday_holiday_labels:
-                    # Empty line, label, empty line (3 rows total, label in middle)
-                    pr['monday_details'] = '' + '\n'.join([''] + monday_holiday_labels + [''])
+                # If no deck topics but have holiday labels, use the labels
+                # Check if monday_details only has lecture number (no actual content)
+                monday_lines = [l for l in (pr['monday_details'] or '').split('\n') if l.strip()]
+                wednesday_lines = [l for l in (pr['wednesday_details'] or '').split('\n') if l.strip()]
+                
+                # If only has a single line that's all caps (lecture number), treat as empty
+                monday_is_empty = not monday_lines or (len(monday_lines) == 1 and monday_lines[0].isupper())
+                wednesday_is_empty = not wednesday_lines or (len(wednesday_lines) == 1 and wednesday_lines[0].isupper())
+                
+                if monday_is_empty and monday_holiday_labels:
+                    # Add holiday label to monday
+                    pr['monday_details'] = '\n'.join(monday_holiday_labels)
                     pr['monday_no_class'] = True
-                elif not pr['monday_details']:
+                elif monday_is_empty and pr.get('monday_no_class'):
                     pr['monday_no_class'] = True
                     
-                if not pr['wednesday_details'] and wednesday_holiday_labels:
-                    # Empty line, label, empty line (3 rows total, label in middle)
-                    pr['wednesday_details'] = '' + '\n'.join([''] + wednesday_holiday_labels + [''])
+                if wednesday_is_empty and wednesday_holiday_labels:
+                    # Add holiday label to wednesday
+                    pr['wednesday_details'] = '\n'.join(wednesday_holiday_labels)
                     pr['wednesday_no_class'] = True
-                elif not pr['wednesday_details']:
+                elif wednesday_is_empty and pr.get('wednesday_no_class'):
                     pr['wednesday_no_class'] = True
                 
                 if week_num == 4:
@@ -903,6 +949,7 @@ def import_calendar_xls(
         parsed_rows.append({
             'row': i,
             'first': first,
+            'serial': parsed.get('serial'),  # Serial number for UUID generation
             'unit': parsed['unit'],
             'dates': parsed['dates'],
             'reading_list': parsed['reading_list'] or '',
@@ -1240,22 +1287,44 @@ def import_calendar_xls(
             created = 0
             updated = 0
             for name, due, short in assignments_to_create:
-                # Check if assignment already exists by name
-                cursor.execute('SELECT id, due_date, short, canvas_assignment_id FROM assignments WHERE name = ?', (name,))
-                existing = cursor.fetchone()
+                # Generate stable UUID for this assignment using short code
+                # (CSV mode uses short as identifier, Excel mode will use serial)
+                assign_uuid = generate_assignment_uuid(semester, short) if short else None
+                
+                # Check if assignment already exists by UUID (preferred) or name (fallback)
+                existing = None
+                if assign_uuid:
+                    cursor.execute('SELECT id, due_date, short, canvas_assignment_id, uuid FROM assignments WHERE uuid = ?', (assign_uuid,))
+                    existing = cursor.fetchone()
+                
+                if not existing:
+                    # Fallback to name-based lookup
+                    cursor.execute('SELECT id, due_date, short, canvas_assignment_id, uuid FROM assignments WHERE name = ?', (name,))
+                    existing = cursor.fetchone()
                 
                 if existing:
-                    aid, old_due, old_short, canvas_id = existing
-                    # Update if changed
-                    if old_due != due or old_short != short:
-                        cursor.execute('UPDATE assignments SET due_date = ?, short = ? WHERE id = ?', (due, short, aid))
+                    aid, old_due, old_short, canvas_id, old_uuid = existing
+                    # Update if changed, and backfill UUID if missing
+                    updates = []
+                    if old_due != due:
+                        updates.append(('due_date', due))
+                    if old_short != short:
+                        updates.append(('short', short))
+                    if assign_uuid and not old_uuid:
+                        updates.append(('uuid', assign_uuid))
+                    
+                    if updates:
+                        set_clause = ', '.join(f"{col} = ?" for col, _ in updates)
+                        values = [val for _, val in updates] + [aid]
+                        cursor.execute(f'UPDATE assignments SET {set_clause} WHERE id = ?', values)
                         updated += 1
-                        print(f"  Updated: {name} (ID {aid}, canvas_id: {canvas_id})")
+                        print(f"  Updated: {name} (ID {aid}, canvas_id: {canvas_id}, UUID: {assign_uuid or old_uuid})")
                 else:
-                    # Insert new
-                    cursor.execute('INSERT INTO assignments (semester, name, due_date, short) VALUES (?, ?, ?, ?)', (semester, name, due, short))
+                    # Insert new with UUID
+                    cursor.execute('INSERT INTO assignments (semester, name, due_date, short, uuid) VALUES (?, ?, ?, ?, ?)', 
+                                 (semester, name, due, short, assign_uuid))
                     created += 1
-                    print(f"  Created: {name}")
+                    print(f"  Created: {name} (UUID: {assign_uuid})")
             
             conn.commit()
             print(f"[DEBUG] Assignments: {created} created, {updated} updated")
@@ -1282,6 +1351,7 @@ def import_calendar_xls(
             # Helper function to safely set cell values (handles merged cells)
             def safe_set_value(ws, row, col, value):
                 from openpyxl.cell.cell import MergedCell
+                from openpyxl.styles import Alignment
                 cell = ws.cell(row=row, column=col)
                 if isinstance(cell, MergedCell):
                     # Find the top-left cell of the merged range
@@ -1289,9 +1359,15 @@ def import_calendar_xls(
                         if cell.coordinate in merged_range:
                             top_left_cell = ws.cell(row=merged_range.min_row, column=merged_range.min_col)
                             top_left_cell.value = value
+                            # Apply left alignment to column A (session numbers)
+                            if col == 1:
+                                top_left_cell.alignment = Alignment(horizontal='left')
                             return
                 else:
                     cell.value = value
+                    # Apply left alignment to column A (session numbers)
+                    if col == 1:
+                        cell.alignment = Alignment(horizontal='left')
             target_sheet = None
             if semester:
                 for cand in (f'{semester} Dates', semester):
@@ -1371,8 +1447,8 @@ def import_calendar_xls(
                 # If the parsed_rows produced no entries (e.g., template file had no assignment tokens),
                 # fall back to DB listing ordered by due_date, name for a reasonable default ordering.
                 if not rows_to_write:
-                    c.execute('SELECT name, due_date, short FROM assignments WHERE semester = ? ORDER BY due_date, name', (semester,))
-                    for name, due, short in c.fetchall():
+                    cursor.execute('SELECT name, due_date, short FROM assignments WHERE semester = ? ORDER BY due_date, name', (semester,))
+                    for name, due, short in cursor.fetchall():
                         rows_to_write.append((name, due, short))
             else:
                 seen = set()
@@ -1415,10 +1491,12 @@ def import_calendar_xls(
                             if has_unit:
                                 block_rows.insert(0, rr_idx - 1)
                         
-                        # Determine block type by checking first row with placeholders
-                        first_placeholder_row = list(main_ws.iter_rows(min_row=rr_idx, max_row=rr_idx, values_only=True))[0]
-                        has_monday = any(isinstance(c, str) and '{monday_topics}' in c for c in first_placeholder_row)
-                        has_wednesday = any(isinstance(c, str) and '{wednesday_topics}' in c for c in first_placeholder_row)
+                        # Determine block type by checking the first row with {WEEK #}
+                        # This row shows which days have classes via {monday_topics}/{wednesday_topics}
+                        first_row_vals = list(main_ws.iter_rows(min_row=rr_idx, max_row=rr_idx, values_only=True))[0]
+                        # Column 3 (index 2) is MON Lecture, column 4 (index 3) is WED Lecture
+                        has_monday = len(first_row_vals) > 2 and isinstance(first_row_vals[2], str) and '{monday_topics}' in first_row_vals[2]
+                        has_wednesday = len(first_row_vals) > 3 and isinstance(first_row_vals[3], str) and '{wednesday_topics}' in first_row_vals[3]
                         
                         block_type = 'normal' if has_monday and has_wednesday else \
                                    'no_monday' if not has_monday and has_wednesday else \
@@ -1446,10 +1524,33 @@ def import_calendar_xls(
             header_row = 1
             
             # Store template block data before we start modifying
+            # Exclude UNIT rows - we'll insert them dynamically based on quiz grouping
             template_data = {}
+            unit_template_row = None  # Store UNIT row template for reuse
             for tb in template_blocks:
                 template_data[tb['type']] = []
                 for row_idx in tb['rows']:
+                    # Check if this is a UNIT row
+                    row_vals = list(main_ws.iter_rows(min_row=row_idx, max_row=row_idx, values_only=True))[0]
+                    is_unit_row = any(isinstance(c, str) and '{UNIT #}' in c for c in row_vals)
+                    
+                    if is_unit_row:
+                        # Store UNIT row template for later use
+                        if not unit_template_row:
+                            row_values = []
+                            for col in range(1, 10):
+                                cell = main_ws.cell(row=row_idx, column=col)
+                                row_values.append({
+                                    'value': cell.value,
+                                    'font': copy(cell.font) if cell.has_style else None,
+                                    'border': copy(cell.border) if cell.has_style else None,
+                                    'fill': copy(cell.fill) if cell.has_style else None,
+                                    'number_format': copy(cell.number_format) if cell.has_style else None,
+                                    'alignment': copy(cell.alignment) if cell.has_style else None
+                                })
+                            unit_template_row = row_values
+                        continue  # Skip UNIT rows in template blocks
+                    
                     row_values = []
                     for col in range(1, 10):
                         cell = main_ws.cell(row=row_idx, column=col)
@@ -1489,11 +1590,80 @@ def import_calendar_xls(
                         dest_cell.alignment = copy(cell_data['alignment'])
             
             def num_to_words(n):
-                words = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-                        'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen']
+                words = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN',
+                        'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN']
                 return words[n] if 0 < n < len(words) else str(n)
             
+            # Determine unit boundaries by finding weeks with quizzes
+            # Group consecutive weeks with the same quiz name into one unit
+            quiz_info = {}  # quiz_name -> [week_indices]
             for week_idx, pr in enumerate(parsed_for_main, start=1):
+                assignment_names = pr.get('predicted_assignment_names', [])
+                assignment_shorts = pr.get('predicted_assignment_shorts', [])
+                # Find quiz assignments in this week
+                for name in assignment_names:
+                    if 'quiz' in str(name).lower():
+                        quiz_info.setdefault(name, []).append(week_idx)
+                        print(f"[DEBUG] Found quiz '{name}' in week {week_idx}")
+            
+            # Sort quizzes by their last week number to determine unit order
+            unit_boundaries = []  # List of last week numbers for each unit
+            for quiz_name in sorted(quiz_info.keys(), key=lambda quiz_name: max(quiz_info[quiz_name])):
+                last_week = max(quiz_info[quiz_name])
+                unit_boundaries.append(last_week)
+            
+            # Build unit assignment: each unit ends at the last week with that unit's quiz
+            week_to_unit = {}
+            current_unit = 1
+            start_week = 1
+            for boundary_week in sorted(unit_boundaries):
+                for w in range(start_week, boundary_week + 1):
+                    week_to_unit[w] = current_unit
+                current_unit += 1
+                start_week = boundary_week + 1
+            # Handle remaining weeks after last quiz
+            for week_idx in range(start_week, len(parsed_for_main) + 1):
+                week_to_unit[week_idx] = current_unit
+            
+            print(f"[DEBUG] Unit boundaries (last weeks): {unit_boundaries}, Unit assignments: {week_to_unit}")
+            
+            current_unit = None
+            for week_idx, pr in enumerate(parsed_for_main, start=1):
+                # Check if we need to insert a unit header
+                week_unit = week_to_unit.get(week_idx)
+                if week_unit and week_unit != current_unit:
+                    # Insert unit header row using template if available
+                    unit_row = current_output_row
+                    if unit_template_row:
+                        # Copy UNIT template row with formatting
+                        for col_idx, cell_data in enumerate(unit_template_row, start=1):
+                            dest_cell = output_ws.cell(row=unit_row, column=col_idx)
+                            dest_cell.value = cell_data['value']
+                            if cell_data['font']:
+                                dest_cell.font = copy(cell_data['font'])
+                            if cell_data['border']:
+                                dest_cell.border = copy(cell_data['border'])
+                            if cell_data['fill']:
+                                dest_cell.fill = copy(cell_data['fill'])
+                            if cell_data['alignment']:
+                                dest_cell.alignment = copy(cell_data['alignment'])
+                            # Replace {UNIT #} placeholder with words
+                            if isinstance(dest_cell.value, str) and '{UNIT #}' in dest_cell.value:
+                                unit_words = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT']
+                                unit_word = unit_words[week_unit] if week_unit < len(unit_words) else str(week_unit)
+                                dest_cell.value = f"UNIT {unit_word}"
+                    else:
+                        # Fallback: create simple UNIT header
+                        from openpyxl.styles import Alignment, Font
+                        unit_cell = output_ws.cell(row=unit_row, column=1)
+                        unit_words = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT']
+                        unit_word = unit_words[week_unit] if week_unit < len(unit_words) else str(week_unit)
+                        unit_cell.value = f"UNIT {unit_word}"
+                        unit_cell.alignment = Alignment(horizontal='left')
+                        unit_cell.font = Font(bold=True)
+                    current_output_row += 1
+                    current_unit = week_unit
+                
                 # Determine which template block to use
                 has_monday = bool(pr.get('monday_details'))
                 has_wednesday = bool(pr.get('wednesday_details'))
@@ -1534,6 +1704,10 @@ def import_calendar_xls(
                 reading_line = 0
                 assignment_line = 0
                 
+                # Check if this is a no-class week for Monday or Wednesday
+                is_monday_no_class = pr.get('monday_no_class', False)
+                is_wednesday_no_class = pr.get('wednesday_no_class', False)
+                
                 for offset, template_row_data in enumerate(block_template_rows):
                     dest_row = block_start_row + offset
                     
@@ -1556,7 +1730,8 @@ def import_calendar_xls(
                             apply_red_bg = False
                             
                             if '{UNIT #}' in cell_val:
-                                new_val = week_idx
+                                # UNIT rows should not appear here anymore - skip
+                                continue
                             elif '{WEEK #}' in cell_val:
                                 new_val = num_to_words(week_idx)
                             elif '{DATES}' in cell_val:
@@ -1565,43 +1740,100 @@ def import_calendar_xls(
                                     new_val = _fmt_date(all_dates[0])
                                 elif len(all_dates) > 1:
                                     new_val = f"{_fmt_date(all_dates[0])}-{_fmt_date(all_dates[-1])}"
+                                # Dates should also be left-aligned
+                                from openpyxl.styles import Alignment
+                                output_ws.cell(row=dest_row, column=col_idx).alignment = Alignment(horizontal='left')
                             elif '{readings}' in cell_val:
                                 reading_lines = pr.get('reading_list', '').split('\n') if pr.get('reading_list') else []
                                 if reading_lines and reading_line < len(reading_lines):
                                     new_val = reading_lines[reading_line]
                                     reading_line += 1
+                            elif '{CLASS#}' in cell_val:
+                                # Determine if this is monday or wednesday based on column position
+                                # Column 3 (index 2) is typically Monday, Column 4 (index 3) is Wednesday
+                                is_monday_col = (col_idx == 3)
+                                is_wednesday_col = (col_idx == 4)
+                                
+                                if is_monday_col:
+                                    monday_details = pr.get('monday_details', '')
+                                    monday_lines = monday_details.split('\n') if monday_details else []
+                                    
+                                    if monday_lines and monday_topic_line < len(monday_lines):
+                                        new_val = monday_lines[monday_topic_line]
+                                        monday_topic_line += 1
+                                    
+                                    if pr.get('monday_no_class'):
+                                        apply_red_bg = True
+                                
+                                elif is_wednesday_col:
+                                    wednesday_details = pr.get('wednesday_details', '')
+                                    wednesday_lines = wednesday_details.split('\n') if wednesday_details else []
+                                    
+                                    if wednesday_lines and wednesday_topic_line < len(wednesday_lines):
+                                        new_val = wednesday_lines[wednesday_topic_line]
+                                        wednesday_topic_line += 1
+                                    
+                                    if pr.get('wednesday_no_class'):
+                                        apply_red_bg = True
+                                        
                             elif '{monday_topics}' in cell_val:
                                 # Check if there are actual details (like holiday labels)
                                 monday_details = pr.get('monday_details', '')
                                 monday_lines = monday_details.split('\n') if monday_details else []
                                 
-                                if monday_lines and monday_topic_line < len(monday_lines):
-                                    # Use the actual detail (topic or holiday label)
-                                    new_val = monday_lines[monday_topic_line]
-                                    monday_topic_line += 1
-                                
-                                # Apply red background if this is marked as no-class (all rows get red)
-                                if pr.get('monday_no_class'):
+                                # For no-class days: show label only in center row (offset 1), blank in others
+                                if is_monday_no_class:
                                     apply_red_bg = True
+                                    if offset == 1 and monday_lines:  # Center row
+                                        new_val = monday_lines[0] if monday_lines else ''
+                                    else:
+                                        new_val = ''  # Blank in top and bottom rows
+                                else:
+                                    # Normal class day: 
+                                    # Row 1 (offset 0): lecture number (first line, typically "ONE", "TWO", etc.)
+                                    # Rows 2-3 (offset 1-2): topic details (remaining lines)
+                                    if offset == 0 and monday_lines:
+                                        # First row shows the lecture number
+                                        new_val = monday_lines[0] if monday_lines else ''
+                                    elif offset > 0 and len(monday_lines) > 1:
+                                        # Subsequent rows show topic lines (skip first line which is lecture number)
+                                        topic_line_index = offset  # offset 1 -> index 1, offset 2 -> index 2
+                                        if topic_line_index < len(monday_lines):
+                                            new_val = monday_lines[topic_line_index]
+                                    else:
+                                        new_val = ''
                                         
                             elif '{wednesday_topics}' in cell_val:
                                 # Check if there are actual details (like holiday labels)
                                 wednesday_details = pr.get('wednesday_details', '')
                                 wednesday_lines = wednesday_details.split('\n') if wednesday_details else []
                                 
-                                if wednesday_lines and wednesday_topic_line < len(wednesday_lines):
-                                    # Use the actual detail (topic or holiday label)
-                                    new_val = wednesday_lines[wednesday_topic_line]
-                                    wednesday_topic_line += 1
-                                
-                                # Apply red background if this is marked as no-class (all rows get red)
-                                if pr.get('wednesday_no_class'):
+                                # For no-class days: show label only in center row (offset 1), blank in others
+                                if is_wednesday_no_class:
                                     apply_red_bg = True
+                                    if offset == 1 and wednesday_lines:  # Center row
+                                        new_val = wednesday_lines[0] if wednesday_lines else ''
+                                    else:
+                                        new_val = ''  # Blank in top and bottom rows
+                                else:
+                                    # Normal class day:
+                                    # Row 1 (offset 0): lecture number (first line, typically "ONE", "TWO", etc.)
+                                    # Rows 2-3 (offset 1-2): topic details (remaining lines)
+                                    if offset == 0 and wednesday_lines:
+                                        # First row shows the lecture number
+                                        new_val = wednesday_lines[0] if wednesday_lines else ''
+                                    elif offset > 0 and len(wednesday_lines) > 1:
+                                        # Subsequent rows show topic lines (skip first line which is lecture number)
+                                        topic_line_index = offset  # offset 1 -> index 1, offset 2 -> index 2
+                                        if topic_line_index < len(wednesday_lines):
+                                            new_val = wednesday_lines[topic_line_index]
+                                    else:
+                                        new_val = ''
                                         
                             elif '{ASSIGNMENT}' in cell_val:
                                 pshorts = pr.get('predicted_assignment_shorts', [])
                                 if pshorts and assignment_line < len(pshorts):
-                                    new_val = pshorts[assignment_line]
+                                    new_val = pshorts[assignment_line].upper()
                                     assignment_line += 1
                             
                             # Only update if we found a replacement
@@ -1623,8 +1855,66 @@ def import_calendar_xls(
                     
                     current_output_row += 1
                 
-                # Add blank row after block
+                # Add blank row after each block (keeps spacing between weeks)
+                blank_row = current_output_row
+                output_ws.row_dimensions[blank_row].height = 15
+                # Ensure row is not hidden or collapsed
+                output_ws.row_dimensions[blank_row].hidden = False
+                output_ws.row_dimensions[blank_row].collapsed = False
+                # Add a non-breaking space to prevent row from being removed
+                output_ws.cell(row=blank_row, column=1).value = "\u00A0"
                 current_output_row += 1
+            
+            # The last content row is the last row of the last week block
+            # current_output_row is now pointing to the row after the blank row
+            # current_output_row - 1 = blank row after last week
+            # current_output_row - 2 = last content row (3rd row of last week)
+            # Border line should be drawn BELOW the blank row (on current_output_row)
+            last_content_row = current_output_row - 2
+            blank_row = current_output_row - 1
+            border_line_row = current_output_row
+            first_content_row = header_row + 1
+            
+            # Add thick borders to create a box around the entire calendar content
+            from openpyxl.styles import Border, Side
+            thick_border_side = Side(style='thick', color='000000')
+            
+            # Determine the rightmost content column (typically column 5 for ACTIVITIES)
+            max_content_col = 5
+            
+            # Apply top border to the row AFTER the blank row (creates space between content and border)
+            # Do NOT add left/right borders here - those should stop at the blank row
+            for col_idx in range(1, max_content_col + 1):
+                cell = output_ws.cell(row=border_line_row, column=col_idx)
+                cell.border = Border(
+                    left=None,
+                    right=None,
+                    top=thick_border_side,
+                    bottom=None
+                )
+            
+            # Apply left and right borders to all content rows AND the blank row to complete the box sides
+            # Go from first_content_row all the way through the blank_row
+            for row_idx in range(first_content_row, blank_row + 1):
+                # Left border on column 1
+                cell_left = output_ws.cell(row=row_idx, column=1)
+                current_border = cell_left.border
+                cell_left.border = Border(
+                    left=thick_border_side,
+                    right=current_border.right if current_border else None,
+                    top=current_border.top if current_border else None,
+                    bottom=current_border.bottom if current_border else None
+                )
+                
+                # Right border on max content column
+                cell_right = output_ws.cell(row=row_idx, column=max_content_col)
+                current_border = cell_right.border
+                cell_right.border = Border(
+                    left=current_border.left if current_border else None,
+                    right=thick_border_side,
+                    top=current_border.top if current_border else None,
+                    bottom=current_border.bottom if current_border else None
+                )
             
             try:
                 # If this was a DB-driven populate, clear any leftover placeholder tokens like '{...}'
@@ -1639,6 +1929,11 @@ def import_calendar_xls(
                                 v = cell.value
                                 if isinstance(v, str) and '{' in v and '}' in v:
                                     cell.value = None
+                    
+                    # Ensure blank row after last content is preserved with height
+                    blank_row_num = last_content_row + 1
+                    output_ws.row_dimensions[blank_row_num].height = 15
+                    
                 t_wb.save(out_path)
             except Exception as e:
                 print(f"Error saving populated workbook: {e}")

@@ -4,7 +4,7 @@ theme: classroom
 paginate: true
 COURSE_TITLE: "strategic"
 PRESENTATION_TITLE: "strategic"
-EXPORT_DATE: "2026-01-16"
+EXPORT_DATE: "2026-01-17"
 ASSIGNMENTS:
   - name: "Final Report Proposal"
     due_date: "2/13/26"

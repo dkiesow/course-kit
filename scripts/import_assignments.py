@@ -21,6 +21,7 @@ import re
 import shutil
 import sqlite3
 import sys
+import uuid
 from typing import List, Tuple, Optional
 
 
@@ -43,6 +44,24 @@ def parse_date(s: str) -> Optional[str]:
             continue
     raise ValueError(f"Unknown date format: {s!r}")
 
+def generate_assignment_uuid(semester: str, short: str) -> str:
+    """Generate a stable UUID for an assignment based on semester and short code.
+    
+    This ensures that re-importing the same assignment from CSV won't create duplicates.
+    Uses UUID5 with a namespace for deterministic generation.
+    
+    Args:
+        semester: Semester code (e.g., 'SP2026')
+        short: Short code for assignment (e.g., 'PROJ1')
+    
+    Returns:
+        UUID string
+    """
+    # Use a custom namespace UUID for our assignments
+    namespace = uuid.UUID('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+    # Normalize inputs to ensure consistency
+    key = f"{semester.upper().strip()}:{short.upper().strip()}"
+    return str(uuid.uuid5(namespace, key))
 
 def read_csv_rows(path: str) -> List[dict]:
     """
@@ -68,7 +87,7 @@ def read_csv_rows(path: str) -> List[dict]:
             return s.lower()
         if first and any((c is not None and str(c).strip() != '') for c in first):
             # Heuristic: detect header-style CSV if at least two known header tokens are present in the first row
-            header_tokens = {'semester', 'week', 'assignment', 'due date', 'due_date', 'due', 'xls short', 'xls_short', 'short'}
+            header_tokens = {'semester', 'week', 'assignment', 'due date', 'due_date', 'due', 'xls short', 'xls_short', 'short', 'uuid'}
             header_norms = [_norm_cell(h) for h in first]
             matches = 0
             for h in header_norms:
@@ -93,6 +112,7 @@ def read_csv_rows(path: str) -> List[dict]:
                     if name in header:
                         idx_short = header.index(name)
                         break
+                idx_uuid = header.index('uuid') if 'uuid' in header else None
                 for i, r in enumerate(rdr, start=2):
                     if not r or all((c is None or str(c).strip() == '') for c in r[:5]):
                         continue
@@ -103,12 +123,15 @@ def read_csv_rows(path: str) -> List[dict]:
                     name = get(idx_assignment) if idx_assignment is not None else ''
                     due_raw = get(idx_due) if idx_due is not None else ''
                     short = get(idx_short) if idx_short is not None else ''
+                    uuid_val = get(idx_uuid) if idx_uuid is not None else ''
                     if short == '':
                         short = None
+                    if uuid_val == '':
+                        uuid_val = None
                     if short is None and (due_raw == '' or due_raw is None):
                         rows.append({'kind': 'reading', 'semester': semester, 'week': week, 'name': name})
                     else:
-                        rows.append({'kind': 'assignment', 'semester': semester, 'week': week, 'name': name, 'due_raw': due_raw, 'short': short})
+                        rows.append({'kind': 'assignment', 'semester': semester, 'week': week, 'name': name, 'due_raw': due_raw, 'short': short, 'uuid': uuid_val})
             else:
                 # Treat as legacy (no header)
                 if first:
@@ -153,22 +176,28 @@ def read_csv_rows(path: str) -> List[dict]:
 
 def ensure_assignments_table(conn: sqlite3.Connection) -> None:
     c = conn.cursor()
-    # Create table if missing, include `short` column
+    # Create table if missing, include `short` and `uuid` columns
     c.execute('''CREATE TABLE IF NOT EXISTS assignments (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     semester TEXT,
                     name TEXT NOT NULL,
                     due_date TEXT NOT NULL,
                     short TEXT,
+                    uuid TEXT UNIQUE,
                     description TEXT,
                     points INTEGER DEFAULT 0
                 )''')
-    # Add `short` column if older schema lacks it
+    # Add columns if older schema lacks them
     c.execute("PRAGMA table_info(assignments)")
     cols = [r[1] for r in c.fetchall()]
     if 'short' not in cols:
         try:
             c.execute('ALTER TABLE assignments ADD COLUMN short TEXT')
+        except Exception:
+            pass
+    if 'uuid' not in cols:
+        try:
+            c.execute('ALTER TABLE assignments ADD COLUMN uuid TEXT UNIQUE')
         except Exception:
             pass
     conn.commit()
@@ -204,7 +233,7 @@ def find_deck_ids_by_week(conn: sqlite3.Connection, week_value: str) -> List[int
 
 def import_assignments(csv_path: str, db_path: str = 'presentations.db', backup: bool = False, dry_run: bool = True, upsert: bool = True) -> Tuple[int, int, int]:
     rows = read_csv_rows(csv_path)
-    planned_assignments: List[Tuple[str, str, str, Optional[str]]] = []
+    planned_assignments: List[Tuple[str, str, str, Optional[str], Optional[str]]] = []  # (sem, name, due, short, uuid)
     planned_readings: List[Tuple[str, str, str]] = []
     errors = []
 
@@ -215,6 +244,7 @@ def import_assignments(csv_path: str, db_path: str = 'presentations.db', backup:
             name = r.get('name', '')
             due_raw = r.get('due_raw', '') or ''
             short = r.get('short')
+            csv_uuid = r.get('uuid')
             try:
                 due = parse_date(due_raw) if due_raw else None
             except Exception as e:
@@ -225,7 +255,7 @@ def import_assignments(csv_path: str, db_path: str = 'presentations.db', backup:
                 print(f"Skipping assignment {sem} / {name}: missing or unparseable due date")
                 errors.append((sem, name, due_raw, 'missing due date'))
                 continue
-            planned_assignments.append((sem, name, due, short))
+            planned_assignments.append((sem, name, due, short, csv_uuid))
         elif kind == 'reading':
             planned_readings.append((r.get('semester', ''), r.get('week', ''), r.get('name', '')))
         else:
@@ -250,18 +280,23 @@ def import_assignments(csv_path: str, db_path: str = 'presentations.db', backup:
     skipped = 0
 
     # Process assignments
-    for sem, name, due, short in planned_assignments:
+    for sem, name, due, short, csv_uuid in planned_assignments:
         existing = None
-        # Prefer matching by short code when provided
-        if short:
-            c.execute('SELECT id, due_date, short, name FROM assignments WHERE semester = ? AND short = ?', (sem, short))
+        # Prefer matching by UUID if provided in CSV
+        if csv_uuid:
+            c.execute('SELECT id, due_date, short, name, uuid FROM assignments WHERE uuid = ?', (csv_uuid,))
             existing = c.fetchone()
+        # Then try short code
+        if not existing and short:
+            c.execute('SELECT id, due_date, short, name, uuid FROM assignments WHERE semester = ? AND short = ?', (sem, short))
+            existing = c.fetchone()
+        # Finally fallback to name
         if not existing:
-            c.execute('SELECT id, due_date, short, name FROM assignments WHERE semester = ? AND name = ?', (sem, name))
+            c.execute('SELECT id, due_date, short, name, uuid FROM assignments WHERE semester = ? AND name = ?', (sem, name))
             existing = c.fetchone()
 
         if existing:
-            eid, cur_due, cur_short, cur_name = existing
+            eid, cur_due, cur_short, cur_name, cur_uuid = existing
             changed = False
             if upsert:
                 if cur_due != due:
@@ -277,6 +312,13 @@ def import_assignments(csv_path: str, db_path: str = 'presentations.db', backup:
                         c.execute('UPDATE assignments SET short = ? WHERE id = ?', (short, eid))
                         conn.commit()
                     changed = True
+                # Backfill UUID if provided in CSV but missing in DB
+                if csv_uuid and not cur_uuid:
+                    print(f"Backfill UUID: {sem} / {name}: {csv_uuid}")
+                    if not dry_run:
+                        c.execute('UPDATE assignments SET uuid = ? WHERE id = ?', (csv_uuid, eid))
+                        conn.commit()
+                    changed = True
                 # Optionally update name if name differs
                 if name and cur_name != name:
                     if not dry_run:
@@ -288,9 +330,12 @@ def import_assignments(csv_path: str, db_path: str = 'presentations.db', backup:
             else:
                 skipped += 1
         else:
-            print(f"Insert: {sem} / {name} -> {due} (short={short})")
+            # Generate UUID if not provided in CSV
+            if not csv_uuid and short:
+                csv_uuid = generate_assignment_uuid(sem, short)
+            print(f"Insert: {sem} / {name} -> {due} (short={short}, uuid={csv_uuid})")
             if not dry_run:
-                c.execute('INSERT INTO assignments (semester, name, due_date, short) VALUES (?, ?, ?, ?)', (sem, name, due, short))
+                c.execute('INSERT INTO assignments (semester, name, due_date, short, uuid) VALUES (?, ?, ?, ?, ?)', (sem, name, due, short, csv_uuid))
                 conn.commit()
             inserted += 1
 

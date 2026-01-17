@@ -19,6 +19,25 @@ import xml.etree.ElementTree as ET
 GIF_FALLBACK_THRESHOLD = 5 * 1024 * 1024  # 5 MB
 
 
+def _fix_xml_declaration(xml_bytes):
+    """
+    Fix XML declaration to use double quotes instead of single quotes.
+    Python's ET.tostring() generates declarations with single quotes which
+    PowerPoint may not accept, even though they are technically valid XML.
+    
+    Example: <?xml version='1.0' ... ?> becomes <?xml version="1.0" ... ?>
+    """
+    if xml_bytes.startswith(b"<?xml version='"):
+        # Replace single quotes with double quotes in the XML declaration only
+        decl_end = xml_bytes.find(b'?>')
+        if decl_end > 0:
+            declaration = xml_bytes[:decl_end + 2]
+            rest = xml_bytes[decl_end + 2:]
+            declaration = declaration.replace(b"'", b'"')
+            return declaration + rest
+    return xml_bytes
+
+
 def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts_map, deck_info=None):
     """
     Build a PPTX file directly from slide data using custom layouts.
@@ -45,31 +64,48 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
     
     # Modify the content type in [Content_Types].xml to make it a presentation
     try:
-        # Read the ZIP
+        # Read the ZIP while preserving ZipInfo metadata
+        file_list = []
         with zipfile.ZipFile(temp_pptx, 'r') as zf:
-            files = {name: zf.read(name) for name in zf.namelist()}
+            for item in zf.infolist():
+                data = zf.read(item.filename)
+                file_list.append((item, data))
         
         # Modify content types
-        if '[Content_Types].xml' in files:
-            content_xml = files['[Content_Types].xml'].decode('utf-8')
-            content_xml = content_xml.replace(
-                'presentationml.template.main',
-                'presentationml.presentation.main'
-            )
-            # Add GIF support if not already present
-            if 'image/gif' not in content_xml:
-                # Insert GIF content type after PNG
+        modified_files = {}
+        for item, data in file_list:
+            if item.filename == '[Content_Types].xml':
+                content_xml = data.decode('utf-8')
                 content_xml = content_xml.replace(
-                    '<Default Extension="png" ContentType="image/png"/>',
-                    '<Default Extension="png" ContentType="image/png"/><Default Extension="gif" ContentType="image/gif"/>'
+                    'presentationml.template.main',
+                    'presentationml.presentation.main'
                 )
-                print("Added GIF content type support to template")
-            files['[Content_Types].xml'] = content_xml.encode('utf-8')
+                # Add GIF support if not already present
+                if 'image/gif' not in content_xml:
+                    # Insert GIF content type after PNG
+                    content_xml = content_xml.replace(
+                        '<Default Extension="png" ContentType="image/png"/>',
+                        '<Default Extension="png" ContentType="image/png"/><Default Extension="gif" ContentType="image/gif"/>'
+                    )
+                    print("Added GIF content type support to template")
+                modified_files[item.filename] = content_xml.encode('utf-8')
+            else:
+                modified_files[item.filename] = data
         
-        # Write back
+        # Write back with preserved metadata
         with zipfile.ZipFile(temp_pptx, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for name, data in files.items():
-                zf.writestr(name, data)
+            for item, _ in file_list:
+                data = modified_files[item.filename]
+                # Create new ZipInfo with same metadata
+                new_item = zipfile.ZipInfo(item.filename)
+                new_item.compress_type = item.compress_type
+                new_item.create_system = item.create_system
+                new_item.create_version = item.create_version
+                new_item.extract_version = item.extract_version
+                new_item.flag_bits = item.flag_bits
+                new_item.external_attr = item.external_attr
+                new_item.date_time = item.date_time
+                zf.writestr(new_item, data)
     except Exception as e:
         print(f"Warning: Could not patch template: {e}")
     
@@ -152,11 +188,19 @@ def build_pptx_from_slides(slides_data, output_path, template_path, pptx_layouts
     
     # Save the presentation
     prs.save(output_path)
+    
+    # Clean up temp template file
+    try:
+        if os.path.exists(temp_pptx):
+            os.remove(temp_pptx)
+    except Exception as e:
+        print(f"Warning: Could not remove temp file: {e}")
+    
     # Normalize PPTX docProps (populate Slides/Words/etc) to keep document metadata accurate
     try:
         normalize_pptx(output_path)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Warning: Could not normalize PPTX: {e}")
     return True
 
 
@@ -281,7 +325,8 @@ def _reorder_content_types(ct_bytes, files=None):
     for o in others + docprops + presentation:
         root.append(o)
 
-    return ET.tostring(root, encoding='utf-8', xml_declaration=True)
+    xml_bytes = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+    return _fix_xml_declaration(xml_bytes)
 
 
 def _normalize_slide_paragraph_pPr(files):
@@ -309,7 +354,8 @@ def _normalize_slide_paragraph_pPr(files):
                         p.insert(0, pPr)
                         changed = True
         if changed:
-            new_files[name] = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+            xml_bytes = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+            new_files[name] = _fix_xml_declaration(xml_bytes)
     return new_files
 
 
@@ -382,9 +428,10 @@ def normalize_pptx(pptx_path):
         te = ET.SubElement(tops, f'{{{ns}}}t')
         te.text = t
 
-    new_app_xml = ET.tostring(props, encoding='utf-8', xml_declaration=True)
+    xml_bytes = ET.tostring(props, encoding='utf-8', xml_declaration=True)
+    new_app_xml = _fix_xml_declaration(xml_bytes)
 
-    # Read and rewrite ZIP with updated docProps/app.xml
+    # Read and rewrite ZIP with updated docProps/app.xml, preserving all metadata
     tmpfd, tmpname = tempfile.mkstemp(suffix='.pptx')
     os.close(tmpfd)
     try:
@@ -392,8 +439,18 @@ def normalize_pptx(pptx_path):
             for item in zin.infolist():
                 data = zin.read(item.filename)
                 if item.filename == 'docProps/app.xml':
-                    zout.writestr(item, new_app_xml)
+                    # Create new ZipInfo with same metadata but updated content
+                    new_item = zipfile.ZipInfo(item.filename)
+                    new_item.compress_type = item.compress_type
+                    new_item.create_system = item.create_system
+                    new_item.create_version = item.create_version
+                    new_item.extract_version = item.extract_version
+                    new_item.flag_bits = item.flag_bits
+                    new_item.external_attr = item.external_attr
+                    new_item.date_time = item.date_time
+                    zout.writestr(new_item, new_app_xml)
                 else:
+                    # Preserve original metadata
                     zout.writestr(item, data)
         shutil.move(tmpname, pptx_path)
     except Exception:

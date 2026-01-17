@@ -152,6 +152,11 @@ def init_db():
     # Topics for the deck's title slide (up to two topics)
     ensure_column('decks', 'topic1', 'TEXT')
     ensure_column('decks', 'topic2', 'TEXT')
+    
+    # Assignment table columns
+    ensure_column('assignments', 'short', 'TEXT')
+    ensure_column('assignments', 'canvas_assignment_id', 'TEXT')
+    ensure_column('assignments', 'uuid', 'TEXT UNIQUE')
 
     # Link table for deck <-> assignment relationships
     c.execute('''CREATE TABLE IF NOT EXISTS deck_assignments (
