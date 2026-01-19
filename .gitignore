@@ -19,3 +19,11 @@ temp_*.pptx
 /test*.md
 /temp*.md
 *.bak
+
+# Non-production DB backups, temp DBs, variables and Office temp files
+presentations.db.bak*
+slides.db
+tmp_test_db.db
+variables.json
+strategic.md
+~$*
