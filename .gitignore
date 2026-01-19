@@ -27,3 +27,6 @@ tmp_test_db.db
 variables.json
 strategic.md
 ~$*
+
+# Ignore any local database files
+*.db
