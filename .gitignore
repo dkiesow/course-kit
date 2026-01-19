@@ -30,3 +30,7 @@ strategic.md
 
 # Ignore any local database files
 *.db
+
+# Ignore root-level logs and PNGs (do not store these in repo root)
+/*.log
+/*.png
