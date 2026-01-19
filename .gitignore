@@ -6,3 +6,11 @@ output/
 nohup.out
 
 canvas_config.json
+assets/
+temp_test_full.pptx
+test_gold_background.pptx
+tmp_deck_26_test.pptx
+tmp_deck_26_test2.pptx
+tmp_deck_26_verify.pptx
+tmp_deck_*.pptx
+temp_*.pptx
