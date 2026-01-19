@@ -14,3 +14,8 @@ tmp_deck_26_test2.pptx
 tmp_deck_26_verify.pptx
 tmp_deck_*.pptx
 temp_*.pptx
+
+# Ignore root-level test/temp markdown files and backup files
+/test*.md
+/temp*.md
+*.bak
