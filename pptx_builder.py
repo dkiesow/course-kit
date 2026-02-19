@@ -951,7 +951,7 @@ def add_image_to_slide(slide, image_path, centered=False):
     # Check if file exists
     if not os.path.exists(image_path):
         print(f"Warning: Image not found: {image_path}")
-        return
+        return None, None
     
     # Get image dimensions - handle GIFs specially to preserve animation
     if image_path.lower().endswith('.gif'):
