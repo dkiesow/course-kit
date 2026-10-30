@@ -423,9 +423,16 @@ def normalize_pptx(pptx_path):
     p.text = str(paragraphs)
     s = ET.SubElement(props, f'{{{ns}}}Slides')
     s.text = str(slide_count)
+    # TitlesOfParts must be a vt:vector of vt:lpstr (docPropsVTypes namespace);
+    # bare <t> children are schema-invalid and make PowerPoint "repair" the file.
+    vt = 'http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes'
+    ET.register_namespace('vt', vt)
     tops = ET.SubElement(props, f'{{{ns}}}TitlesOfParts')
+    vec = ET.SubElement(tops, f'{{{vt}}}vector')
+    vec.set('size', str(len(titles)))
+    vec.set('baseType', 'lpstr')
     for t in titles:
-        te = ET.SubElement(tops, f'{{{ns}}}t')
+        te = ET.SubElement(vec, f'{{{vt}}}lpstr')
         te.text = t
 
     xml_bytes = ET.tostring(props, encoding='utf-8', xml_declaration=True)
